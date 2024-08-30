@@ -3,8 +3,7 @@ from pathlib import Path
 from trustpoint_devid_module.schema import KeyInventory
 from trustpoint_devid_module.serializer import PrivateKeySerializer
 from trustpoint_devid_module.service_interface import DevIdModule
-from trustpoint_devid_module import get_sha256_fingerprint_as_upper_hex_str
-from tests import x509_credential
+from trustpoint_devid_module.util import get_sha256_fingerprint_as_upper_hex_str
 
 
 class TestDevIdModule:
@@ -46,7 +45,6 @@ class TestDevIdModule:
         dev_id_module.purge()
 
         assert not tmp_path.exists()
-
 
     def test_insert_key(self, tmp_path: Path, x509_credential) -> None:
         """Tests the insertion of private LDevID keys."""
