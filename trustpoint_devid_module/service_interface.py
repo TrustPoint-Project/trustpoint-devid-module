@@ -196,9 +196,10 @@ class DevIdModule:
     def insert_ldevid_certificate_chain(
             self,
             certificate_index: int,
-            certificate_collection: bytes | str
-            |list[bytes | str | x509.Certificate | CertificateSerializer]
-            | CertificateCollectionSerializer
+            certificate_collection: \
+                    bytes | str \
+                    | list[bytes | str | x509.Certificate | CertificateSerializer] \
+                    | CertificateCollectionSerializer
     ) -> int:
         certificate_chain = CertificateCollectionSerializer(certificate_collection)
         inventory = self.inventory.model_copy()

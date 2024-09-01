@@ -52,6 +52,7 @@ class SignatureSuite(enum.Enum):
         hashes.SHA256,
         SignatureAlgorithmOID.RSA_WITH_SHA256,
         PublicKeyAlgorithmOID.RSAES_PKCS1_v1_5,
+        'rsa_2048'
     )
 
     RSA3072_SHA256_PKCS1_v1_5 = (
@@ -63,6 +64,7 @@ class SignatureSuite(enum.Enum):
         hashes.SHA256,
         SignatureAlgorithmOID.RSA_WITH_SHA256,
         PublicKeyAlgorithmOID.RSAES_PKCS1_v1_5,
+        'rsa_3072'
     )
 
     RSA4096_SHA256_PKCS1_v1_5 = (
@@ -74,6 +76,7 @@ class SignatureSuite(enum.Enum):
         hashes.SHA256,
         SignatureAlgorithmOID.RSA_WITH_SHA256,
         PublicKeyAlgorithmOID.RSAES_PKCS1_v1_5,
+        'rsa_4096'
     )
 
     SECP256R1_SHA256 = (
@@ -85,6 +88,7 @@ class SignatureSuite(enum.Enum):
         hashes.SHA256,
         SignatureAlgorithmOID.ECDSA_WITH_SHA256,
         PublicKeyAlgorithmOID.EC_PUBLIC_KEY,
+        'secp256r1'
     )
 
     SECP384R1_SHA384 = (
@@ -96,6 +100,7 @@ class SignatureSuite(enum.Enum):
         hashes.SHA384,
         SignatureAlgorithmOID.ECDSA_WITH_SHA256,
         PublicKeyAlgorithmOID.EC_PUBLIC_KEY,
+        'secp384r1'
     )
 
     def __new__(
@@ -108,6 +113,7 @@ class SignatureSuite(enum.Enum):
         hash_algorithm: type[HashAlgorithm] | None,
         signature_algorithm_oid: SignatureAlgorithmOID,
         public_key_algorithm_oid: PublicKeyAlgorithmOID,
+        key_type_name: str
     ) -> object:
         obj = object.__new__(cls)
         obj._value_ = verbose_name
@@ -119,6 +125,7 @@ class SignatureSuite(enum.Enum):
         obj.hash_algorithm = hash_algorithm
         obj.signature_algorithm_oid = signature_algorithm_oid
         obj.public_key_algorithm_oid = public_key_algorithm_oid
+        obj.key_type_name = key_type_name
         return obj
 
     @classmethod
