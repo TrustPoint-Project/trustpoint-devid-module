@@ -160,10 +160,10 @@ class CertificateCollectionSerializer(Serializer):
 
     def __init__(
         self,
-        certificate_collection: bytes
-        | str
-        | list[bytes | str | x509.Certificate | CertificateSerializer]
-        | CertificateCollectionSerializer,
+            certificate_collection: \
+                bytes | str \
+                | list[bytes | str | x509.Certificate | CertificateSerializer] \
+                | CertificateCollectionSerializer,
     ) -> None:
         """Inits the CertificateCollectionSerializer class.
 
