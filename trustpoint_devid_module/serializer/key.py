@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed448, ed25519
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, pkcs12
 
 from . import PrivateKey, PublicKey, Serializer
@@ -77,6 +78,13 @@ class PublicKeySerializer(Serializer):
         Returns:
             bytes: Bytes that contains the public key in PEM format.
         """
+
+        if isinstance(self._public_key, ed448.Ed448PublicKey) or isinstance(self._public_key, ed25519.Ed25519PublicKey):
+            return self._public_key.public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw
+            )
+
         return self._public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
@@ -88,6 +96,13 @@ class PublicKeySerializer(Serializer):
         Returns:
             bytes: Bytes that contains the public key in PEM format.
         """
+
+        if isinstance(self._public_key, ed448.Ed448PublicKey) or isinstance(self._public_key, ed25519.Ed25519PublicKey):
+            return self._public_key.public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw
+            )
+
         return self._public_key.public_bytes(
             encoding=serialization.Encoding.DER,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
@@ -265,9 +280,7 @@ class PrivateKeySerializer(Serializer):
             encryption_algorithm=self._get_encryption_algorithm(password),
         )
 
-    def as_pkcs12(
-        self, password: None | bytes = None, friendly_name: bytes = b""
-    ) -> bytes:
+    def as_pkcs12(self, password: None | bytes = None, friendly_name: bytes = b'') -> bytes:
         """Gets the associated private key as bytes in PKCS#12 format.
 
         Args:
@@ -294,6 +307,48 @@ class PrivateKeySerializer(Serializer):
             PrivateKey: The associated private key as PrivateKey instance.
         """
         return self._private_key
+
+    def as_default_pem(self, password: None | bytes = None) -> bytes:
+        """Gets the associated private key in PEM encoding, using either PKCS#1 or RAW format depending on the key type.
+
+        Args:
+            password:
+                Password if the private key shall be encrypted, None otherwise.
+                Empty bytes will be interpreted as None.
+
+        Returns:
+            bytes: Bytes that contains the private key.
+        """
+        if isinstance(self._private_key, ed448.Ed448PrivateKey) or \
+                isinstance(self._private_key, ed25519.Ed25519PrivateKey):
+            return self._private_key.private_bytes(
+                encoding=Encoding.Raw,
+                format=PrivateFormat.Raw,
+                encryption_algorithm=self._get_encryption_algorithm(password)
+            )
+        else:
+            return self.as_pkcs1_pem(password)
+
+    def as_default_der(self, password: None | bytes = None) -> bytes:
+        """Gets the associated private key in DER encoding, using either PKCS#1 or RAW format depending on the key type.
+
+        Args:
+            password:
+                Password if the private key shall be encrypted, None otherwise.
+                Empty bytes will be interpreted as None.
+
+        Returns:
+            bytes: Bytes that contains the private key.
+        """
+        if isinstance(self._private_key, ed448.Ed448PrivateKey) or \
+                isinstance(self._private_key, ed25519.Ed25519PrivateKey):
+            return self._private_key.private_bytes(
+                encoding=Encoding.Raw,
+                format=PrivateFormat.Raw,
+                encryption_algorithm=self._get_encryption_algorithm(password)
+            )
+        else:
+            return self.as_pkcs1_der(password)
 
     @property
     def public_key_serializer(self) -> PublicKeySerializer:

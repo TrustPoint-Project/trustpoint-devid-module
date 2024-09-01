@@ -2,25 +2,24 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+import pydantic
+from cryptography import x509
 
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed448, ed25519
 
-from trustpoint_devid_module.serializer import PrivateKeySerializer
+from trustpoint_devid_module.serializer import (
+    PrivateKeySerializer,
+    CertificateSerializer,
+    CertificateCollectionSerializer)
 
 from trustpoint_devid_module.util import (
     get_sha256_fingerprint_as_upper_hex_str,
-    KeyType,
     PrivateKey,
     SignatureSuite,
 )
 from trustpoint_devid_module.schema import (
-    KeyInventory,
-    KeyInventoryEntry,
-    EnumeratedPublicKeys,
-)
-from trustpoint_devid_module.schema import (
-    CertificateInventory,
-    CertificateInventoryEntry,
+    DevIdCertificate,
+    DevIdKey,
+    Inventory
 )
 
 
@@ -55,408 +54,317 @@ class NothingToPurge(DevIdModuleError):
 class DevIdModule:
     _working_dir: Path
 
-    _private_key_inventory_path: Path
-    _certificate_inventory_path: Path
-
-    _is_initialized: bool = False
+    _inventory_path: Path
+    _inventory: None | Inventory = None
 
     def __init__(self, working_dir: str | Path) -> None:
         self._working_dir = Path(working_dir)
-        self._key_inventory_path = self.working_dir / "key_inventory.json"
-        self._certificate_inventory_path = (
-            self.working_dir / "certificate_inventory.json"
-        )
-        self._certificate_chain_inventory_path = (
-            self.working_dir / "certificate_chain_inventory.json"
-        )
+        self._inventory_path = self.working_dir / 'inventory.json'
 
-        if not self._working_dir.exists():
-            self._is_initialized = True
+        if self.inventory_path.exists() and self.inventory_path.is_file():
+            try:
+                with open(self.inventory_path, 'r') as f:
+                    self._inventory = Inventory.model_validate_json(f.read())
+                self._is_initialized = True
+            except pydantic.ValidationError:
+                err_msg = 'Failed to load inventory. Data seems to be corrupt.'
+                raise RuntimeError(err_msg)
+
 
     def initialize(self) -> None:
+        if self._inventory is not None:
+            err_msg = 'Trustpoint DevID Module is already initialized.'
+            raise RuntimeError(err_msg)
+
         Path.mkdir(self.working_dir, parents=True)
 
-        with open(self.key_inventory_path, "w") as f:
-            f.write(KeyInventory(next_available_index=0, keys=[]).model_dump_json())
+        inventory = Inventory(
+            next_key_index=0,
+            next_certificate_index=0,
 
-        with open(self.certificate_inventory_path, "w") as f:
-            f.write(
-                CertificateInventory(
-                    next_available_index=0, certificates=[]
-                ).model_dump_json()
-            )
+            devid_keys={},
+            devid_certificates={},
+
+            public_key_fingerprint_mapping={},
+            certificate_fingerprint_mapping={})
+
+        self.inventory_path.write_text(inventory.model_dump_json())
+        self._inventory = inventory
 
     def purge(self) -> None:
         shutil.rmtree(self.working_dir, ignore_errors=True)
-
-    def verify_data(self) -> None:
-        self._check_data_consistency_deep()
-
-    def _check_data_consistency_shallow(self) -> None:
-        if not self._working_dir.exists():
-            raise NotInitializedError
-        if not self._working_dir.is_dir():
-            raise DevIdModuleCorrupted
-        if (
-            not self.key_inventory_path.exists()
-            or not self.key_inventory_path.is_file()
-        ):
-            raise DevIdModuleCorrupted
-        if (
-            not self.certificate_inventory_path.exists()
-            or not self.certificate_inventory_path.is_file()
-        ):
-            raise DevIdModuleCorrupted
-
-    def _check_data_consistency_deep(self) -> None:
-        pass
+        self._inventory = None
 
     @property
     def working_dir(self) -> Path:
         return self._working_dir
 
     @property
-    def key_inventory_path(self) -> Path:
-        return self._key_inventory_path
+    def inventory_path(self) -> Path:
+        return self._inventory_path
 
     @property
-    def certificate_inventory_path(self) -> Path:
-        return self._certificate_inventory_path
+    def inventory(self) -> Inventory:
+        return self._inventory
 
-    def _get_key_inventory(self) -> KeyInventory:
-        with open(self._key_inventory_path, "r") as f:
-            key_inventory_data = f.read()
+    def _store_inventory(self, inventory: Inventory) -> None:
+        self.inventory_path.write_text(inventory.model_dump_json())
+        self._inventory = inventory
 
-        return KeyInventory.model_validate_json(key_inventory_data)
+    def insert_ldevid_key(
+            self,
+            private_key: bytes | str | PrivateKey | PrivateKeySerializer,
+            password: None | bytes = None) -> int:
 
-    def _get_certificate_inventory(self) -> CertificateInventory:
-        with open(self._certificate_inventory_path, "r") as f:
-            certificate_inventory_data = f.read()
+        inventory = self.inventory.model_copy()
 
-        return CertificateInventory.model_validate_json(certificate_inventory_data)
+        # get private key serializer
+        private_key = PrivateKeySerializer(private_key, password)
 
-    def enumerate_devid_public_keys(self) -> None | EnumeratedPublicKeys:
-        pass
+        # get key type and signature suite
+        signature_suite = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
 
-    def enumerate_devid_certificates(self) -> None:
-        pass
+        private_key_bytes = private_key.as_pkcs8_pem()
 
-    def enumerate_devid_certificate_chain(self, certificate_index: int) -> None:
-        pass
+        public_key_bytes = private_key.public_key_serializer.as_pem()
+        public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(public_key_bytes)
 
-    def sign(self, key_index: int) -> None:
-        pass
+        if public_key_sha256_fingerprint in inventory.public_key_fingerprint_mapping.keys():
+            raise ValueError('Key already stored.')
 
-    def enable_devid_certificate(self, certificate_index: int) -> None:
-        pass
+        new_key_index = inventory.next_key_index
+        devid_key = DevIdKey(
+            key_index=new_key_index,
+            certificate_indices=[],
 
-    def disable_devid_certificate(self, certificate_index: int) -> None:
+            is_enabled=False,
+            is_idevid_key=False,
+
+            subject_public_key_info=signature_suite.value.encode(),
+
+            private_key=private_key_bytes,
+            public_key=public_key_bytes)
+
+        # update the key inventory and public key fingerprint mapping
+        inventory.next_key_index = new_key_index + 1
+        inventory.public_key_fingerprint_mapping[public_key_sha256_fingerprint] = new_key_index
+        inventory.devid_keys[new_key_index] = devid_key
+
+        self._store_inventory(inventory)
+
+        return new_key_index
+
+    def insert_ldevid_certificate(self, certificate: bytes | str | x509.Certificate | CertificateSerializer) -> int:
+        inventory = self.inventory.model_copy()
+        certificate = CertificateSerializer(certificate)
+        public_key = certificate.public_key_serializer
+
+        # get key type and signature suite
+        signature_suite = SignatureSuite.get_signature_suite_from_certificate(certificate)
+
+        certificate_bytes = certificate.as_pem()
+        certificate_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(certificate_bytes)
+
+        public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(public_key.as_pem())
+
+        key_index = inventory.public_key_fingerprint_mapping.get(public_key_sha256_fingerprint)
+        if key_index is None:
+            raise ValueError('No matching key for the provided certificate found.')
+
+        new_certificate_index = inventory.next_certificate_index
+        devid_certificate = DevIdCertificate(
+            certificate_index = new_certificate_index,
+            key_index = key_index,
+
+            is_enabled=False,
+            is_idevid=False,
+
+            subject_public_key_info=signature_suite.value.encode(),
+            certificate=certificate.as_pem(),
+            certificate_chain=[]
+        )
+
+        inventory.next_certificate_index = new_certificate_index + 1
+        inventory.devid_certificates[new_certificate_index] = devid_certificate
+        inventory.devid_keys[key_index].certificate_indices.append(new_certificate_index)
+        inventory.certificate_fingerprint_mapping[certificate_sha256_fingerprint] = new_certificate_index
+
+        self._store_inventory(inventory)
+
+        return new_certificate_index
+
+    def insert_ldevid_certificate_chain(
+            self,
+            certificate_index: int,
+            certificate_collection: bytes | str
+            |list[bytes | str | x509.Certificate | CertificateSerializer]
+            | CertificateCollectionSerializer
+    ) -> int:
+        certificate_chain = CertificateCollectionSerializer(certificate_collection)
+        inventory = self.inventory.model_copy()
+
+        certificate = inventory.devid_certificates.get(certificate_index)
+        if certificate is None:
+            raise ValueError('No certificate for certificate index found.')
+
+        certificate.certificate_chain.extend(certificate_chain.as_pem_list())
+
+        self._store_inventory(inventory)
+
+        return certificate_index
+
+
+    def delete_ldevid_key(self, key_index: int) -> None:
+        inventory = self.inventory.model_copy()
+
+        devid_key = inventory.devid_keys.get(key_index)
+        if devid_key is None:
+            raise ValueError('No key for key index found.')
+
+        if devid_key.is_idevid_key:
+            raise ValueError('This key is an IDevID key. Cannot delete it.')
+
+        for certificate_index in devid_key.certificate_indices:
+            del inventory.devid_certificates[certificate_index]
+            inventory.certificate_fingerprint_mapping = {
+                fingerprint:index for fingerprint, index in inventory.certificate_fingerprint_mapping.items()
+                if index != certificate_index
+            }
+
+        del inventory.devid_keys[key_index]
+
+        inventory.public_key_fingerprint_mapping = {
+            fingerprint:index for fingerprint, index in inventory.public_key_fingerprint_mapping.items()
+            if index != key_index
+        }
+
+        self._store_inventory(inventory)
+
+
+    def delete_ldevid_certificate(self, certificate_index: int) -> None:
+        inventory = self.inventory.model_copy()
+
+        devid_certificate = inventory.devid_certificates.get(certificate_index)
+        if devid_certificate is None:
+            raise ValueError('No certificate for the certificate index found.')
+
+        if devid_certificate.is_idevid:
+            raise ValueError('This certificate is an IDevID certificate. Cannot delete it.')
+
+        del inventory.devid_certificates[certificate_index]
+        inventory.certificate_fingerprint_mapping = {
+            fingerprint: index for fingerprint, index in inventory.certificate_fingerprint_mapping.items()
+            if index != certificate_index
+        }
+
+        self._store_inventory(inventory)
+
+
+    def delete_ldevid_certificate_chain(self, certificate_index: int) -> None:
+        inventory = self.inventory.model_copy()
+
+        devid_certificate = inventory.devid_certificates.get(certificate_index)
+        if devid_certificate is None:
+            raise ValueError('No certificate for the certificate index found.')
+
+        if devid_certificate.is_idevid:
+            raise ValueError('This certificate chain is part of an IDevID certificate. Cannot delete it.')
+
+        if not devid_certificate.certificate_chain:
+            raise ValueError('No certificate chain found to delete for the provided certificate index.')
+
+        devid_certificate.certificate_chain = []
+
+        self._store_inventory(inventory)
+
+    def add_rng_entropy(self, entropy: bytes) -> None:
+        raise NotImplementedError('Not yet implemented.')
+
+    def sign(self, key_index: int, data: bytes) -> bytes:
         pass
 
     def enable_devid_key(self, key_index: int) -> None:
-        pass
+        inventory = self.inventory.model_copy()
+        devid_key = inventory.devid_keys.get(key_index)
+        if devid_key is None:
+            raise ValueError('No key for key index found.')
+
+        inventory.devid_keys[key_index].is_enabled = True
+
+        self._store_inventory(inventory)
 
     def disable_devid_key(self, key_index: int) -> None:
-        pass
+        inventory = self.inventory.model_copy()
+        devid_key = inventory.devid_keys.get(key_index)
+        if devid_key is None:
+            raise ValueError('No key for key index found.')
 
-    def generate_ldevid_key(self, key_type: str) -> int:
-        if key_type == KeyType.RSA2048:
-            return self._generate_rsa_ldevid_key(key_size=2048)
-        if key_type == KeyType.RSA3072:
-            return self._generate_rsa_ldevid_key(key_size=3072)
-        if key_type == KeyType.RSA4096:
-            return self._generate_rsa_ldevid_key(key_size=4096)
-        if key_type == KeyType.SECP256R1:
-            return self._generate_secp_r1_ldevid_key(key_size=256)
-        if key_type == KeyType.SECP384R1:
-            return self._generate_secp_r1_ldevid_key(key_size=384)
-        if key_type == KeyType.ED448:
-            return self._generate_ed448_ldevid_key()
-        if key_type == KeyType.ED25519:
-            return self._generate_ed25519_ldevid_key()
+        inventory.devid_keys[key_index].is_enabled = False
 
-    def _generate_rsa_ldevid_key(self, key_size: int) -> int:
-        return self.insert_ldevid_key(
-            PrivateKeySerializer(
-                rsa.generate_private_key(public_exponent=65537, key_size=key_size)
+        self._store_inventory(inventory)
+
+    def enable_devid_certificate(self, certificate_index: int) -> None:
+        inventory = self.inventory.model_copy()
+        devid_certificate = inventory.devid_certificates.get(certificate_index)
+        if devid_certificate is None:
+            raise ValueError('No certificate for certificate index found.')
+
+        inventory.devid_keys[certificate_index].is_enabled = True
+
+        self._store_inventory(inventory)
+
+    def disable_devid_certificate(self, certificate_index: int) -> None:
+        inventory = self.inventory.model_copy()
+        devid_certificate = inventory.devid_certificates.get(certificate_index)
+        if devid_certificate is None:
+            raise ValueError('No certificate for certificate index found.')
+
+        inventory.devid_keys[certificate_index].is_enabled = False
+
+        self._store_inventory(inventory)
+
+    # TODO: Subject Public Key Info
+    def enumerate_devid_public_keys(self) -> list[tuple[int, bool, str, bool]]:
+        enumerated_public_keys = []
+        for devid_key_index, devid_key in self.inventory.devid_keys.items():
+            enumerated_public_keys.append(
+                (
+                    devid_key_index,
+                    devid_key.is_enabled,
+                    devid_key.subject_public_key_info.decode(),
+                    devid_key.is_idevid_key)
             )
-        )
 
-    def _generate_secp_r1_ldevid_key(self, key_size: int) -> int:
-        if key_size == 256:
-            curve = ec.SECP256R1()
-        elif key_size == 384:
-            curve = ec.SECP384R1()
-        else:
-            raise ValueError
+        return enumerated_public_keys
 
-        return self.insert_ldevid_key(
-            PrivateKeySerializer(ec.generate_private_key(curve))
-        )
-
-    def _generate_ed448_ldevid_key(self) -> int:
-        return self.insert_ldevid_key(
-            PrivateKeySerializer(ed448.Ed448PrivateKey.generate())
-        )
-
-    def _generate_ed25519_ldevid_key(self) -> int:
-        return self.insert_ldevid_key(
-            PrivateKeySerializer(ed25519.Ed25519PrivateKey.generate())
-        )
-
-    def insert_ldevid_key(
-        self,
-        private_key: bytes | str | PrivateKey | PrivateKeySerializer,
-        password: None | bytes = None,
-    ) -> int:
-        # get bytes in DER format, sha256 fingerprints and file names of both the private and public key
-        private_key = PrivateKeySerializer(private_key, password)
-        private_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(
-            private_key.as_pkcs1_der()
-        )
-        public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(
-            private_key.public_key_serializer.as_der()
-        )
-
-        # get key type and signature suite
-        key_type = KeyType.get_key_type_from_private_key(private_key.as_crypto())
-        signature_suite = SignatureSuite.get_signature_suite_from_key_type(key_type)
-
-        # check if private key already exists
-        if (
-            self._get_key_entry_by_public_key_sha256_fingerprint(
-                public_key_sha256_fingerprint
+    def enumerate_devid_certificates(self) -> list[tuple[int, int, bool, bool, bytes]]:
+        enumerated_certificates = []
+        for devid_certificate_index, devid_certificate in self.inventory.devid_certificates.items():
+            enumerated_certificates.append(
+                (
+                    devid_certificate_index,
+                    devid_certificate.key_index,
+                    devid_certificate.is_enabled,
+                    devid_certificate.is_idevid,
+                    CertificateSerializer(devid_certificate.certificate).as_der(),
+                )
             )
-            is not None
-        ):
-            raise ValueError('Already in DB.')
 
-        # construct the new key entry for the key inventory
-        key_inventory = self._get_key_inventory()
-        new_key_inventory_entry = KeyInventoryEntry(
-            key_index=key_inventory.next_available_index,
-            enabled=False,
-            subject_public_key_info='Not Yet Implemented',
-            signature_suite=signature_suite,
-            key_type=key_type,
-            used_by_idevid_certificate=False,
-            private_key=private_key.as_pkcs1_pem().decode(),
-            public_key=private_key.public_key_serializer.as_pem().decode(),
-            private_key_sha256_fingerprint=private_key_sha256_fingerprint,
-            public_key_sha256_fingerprint=public_key_sha256_fingerprint,
-        )
+        return enumerated_certificates
 
-        # update the key inventory
-        key_inventory.next_available_index += 1
-        key_inventory.keys.append(new_key_inventory_entry)
-        self._store_key_inventory(key_inventory)
+    def enumerate_devid_certificate_chain(self, certificate_index: int) -> list[bytes]:
+        devid_certificate = self.inventory.devid_certificates.get(certificate_index)
+        if devid_certificate is None:
+            raise ValueError('No certificate for certificate index found.')
 
-        # store private and public key in DER (PKCS#8) format
-        return new_key_inventory_entry.key_index
+        if not devid_certificate.certificate_chain:
+            raise ValueError('No certificate chain found for the provided certificate index.')
 
-    # def insert_ldevid_certificate(self, certificate: bytes | str | x509.Certificate | CertificateSerializer) -> int:
-    #     # get fingerprints for both the certificate and public_key
-    #     certificate = CertificateSerializer(certificate)
-    #     certificate_sha256_fingerprint = certificate.as_crypto().fingerprint(hashes.SHA256()).hex().upper()
-    #     public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(
-    #         certificate.public_key_serializer.as_der())
-    #
-    #     # check if certificate already exists
-    #     if self._get_certificate_entry_by_certificate_sha256_fingerprint(certificate_sha256_fingerprint) is not None:
-    #         raise ValueError('Already in DB.')
-    #
-    #     # check that there is exactly one key pair available that matches the public key contained in the certificate
-    #     private_key_entry = self._get_key_entry_by_public_key_sha256_fingerprint(public_key_sha256_fingerprint)
-    #     if private_key_entry is None:
-    #         raise ValueError('Matching private key not found in DB.')
-    #
-    #     # construct the new entry for the certificate inventory
-    #     certificate_inventory = self._get_certificate_inventory()
-    #     new_certificate_entry = CertificateInventoryEntry(
-    #         certificate_index=certificate_inventory.next_available_index,
-    #         key_index=private_key_entry.key_index,
-    #         enabled=True,
-    #         is_idevid_certificate=False,
-    #         certificate_sha256_fingerprint=get_sha256_fingerprint_as_upper_hex_str(certificate.as_der()),
-    #         certificate_chain_file_name=None,
-    #         certificate_chain_sha256_fingerprint=None
-    #     )
-    #
-    #     # update the certificate inventory
-    #     certificate_inventory.next_available_index += 1
-    #     certificate_inventory.certificates.append(new_certificate_entry)
-    #     self._store_certificate_inventory(certificate_inventory)
-    #
-    #     # store the certificate in DER format
-    #     certificate_file_name = f'certificate_{certificate_sha256_fingerprint}.der'
-    #     with open(certificate_file_name, 'wb') as f:
-    #         f.write(certificate.as_der())
-    #
-    #
-    #     return new_certificate_entry.key_index
+        if devid_certificate.is_enabled is False:
+            raise ValueError('The DevID certificate with given certificate_index is disabled.')
 
-    # def insert_ldevid_certificate_chain(
-    #         self,
-    #         certificate_chain: CertificateCollectionSerializer,
-    #         certificate_index: int) -> None:
-    #
-    #     # getting the certificate_entry for the certificate index
-    #     certificate_entry = self._get_certificate_entry_by_certificate_index(certificate_index=certificate_index)
-    #     if certificate_entry is None:
-    #         raise ValueError('No certificate found for given index.')
-    #
-    #     # check there is no chain installed already
-    #     if certificate_entry.certificate_chain_file_name or certificate_entry.certificate_chain_sha256_fingerprint:
-    #         raise ValueError('Certificate chain already installed for given certificate index.')
-    #
-    #     cert_path = certificate_entry.certificate_file_name
-    #     with open(self.working_dir / cert_path, 'rb') as f:
-    #         certificate_serializer = CertificateSerializer(f.read())
-    #
-    #     crypto_cert_chain = []
-    #     current_cert = certificate_serializer.as_crypto()
-    #
-    #     while current_cert is not None:
-    #     for certificate in certificate_chain.as_crypto_list():
-    #         if current_cert.verify_directly_issued_by(certificate):
-    #             crypto_cert_chain.append(certificate)
-    #             if current_cert.sub
-    #             break
+        certificate_chain = []
+        for certificate_bytes in devid_certificate.certificate_chain:
+            certificate_chain.append(CertificateSerializer(certificate_bytes).as_der())
 
-    # def delete_ldevid_key(self, key_index: int) -> None:
-    #     """Deletes the LDevID Key and all corresponding certificates and chains.
-    #
-    #     Args:
-    #         key_index: The index of the key to delete.
-    #
-    #     Raises:
-    #
-    #     """
-    #     key_inventory = self._get_key_inventory()
-    #     certificate_inventory = self._get_certificate_inventory()
-    #
-    #     for key in key_inventory.keys:
-    #         if key.key_index == key_index:
-    #             key_to_delete = key
-    #             break
-    #     else:
-    #         raise ValueError
-    #
-    #     key_inventory.keys.remove(key_to_delete)
-    #     Path.unlink(self.working_dir / Path(key_to_delete.private_key_file_name))
-    #     Path.unlink(self.working_dir / Path(key_to_delete.public_key_file_name))
-    #     self._store_key_inventory(key_inventory)
-    #
-    #     certificates = [
-    #         certificate_entry for certificate_entry in certificate_inventory.certificates
-    #             if certificate_entry.key_index != key_to_delete.key_index]
-    #
-    #     for certificate in certificates:
-    #         Path.unlink(self.working_dir / Path(certificate.certificate_file_name))
-    #
-    #     if len(certificates) != len(certificate_inventory.certificates):
-    #         certificate_inventory.certificates = certificates
-    #         self._store_certificate_inventory(certificate_inventory)
-
-    # def delete_ldevid_certificate(self, certificate_index: int) -> None:
-    #     """Deletes the certificate and the corresponding certificate chain, if any.
-    #
-    #     Args:
-    #         certificate_index: The index of the certificate to delete.
-    #
-    #     Raises:
-    #
-    #     """
-    #     certificate_to_delete = self._get_certificate_entry_by_certificate_index(certificate_index=certificate_index)
-    #     if certificate_to_delete.certificate_chain_file_name:
-    #         cert_chain_path = self.working_dir / certificate_to_delete.certificate_chain_file_name
-    #         Path.unlink(cert_chain_path)
-    #
-    #     cert_path = self.working_dir / certificate_to_delete.certificate_file_name
-    #     Path.unlink(cert_path)
-    #
-    #     certificate_inventory = self._get_certificate_inventory()
-    #     certificate_inventory.certificates.remove(certificate_to_delete)
-    #     self._store_certificate_inventory(certificate_inventory)
-
-    def _store_key_inventory(self, key_inventory: KeyInventory) -> None:
-        with open(self._key_inventory_path, "w") as f:
-            f.write(key_inventory.model_dump_json())
-
-    def _store_certificate_inventory(
-        self, certificate_inventory: CertificateInventory
-    ) -> None:
-        with open(self._certificate_inventory_path, "w") as f:
-            f.write(certificate_inventory.model_dump_json())
-
-    def _get_key_entry_by_key_index(self, key_index: int) -> None | KeyInventoryEntry:
-        keys_with_key_index = [
-            key_entry
-            for key_entry in self._get_key_inventory().keys
-            if key_entry.key_index == key_index
-        ]
-        if len(keys_with_key_index) == 0:
-            return None
-        if len(keys_with_key_index) > 1:
-            raise DevIdModuleCorrupted
-        return keys_with_key_index[0]
-
-    def _get_key_entry_by_public_key_sha256_fingerprint(
-        self, public_key_sha256_fingerprint: str
-    ) -> None | KeyInventoryEntry:
-        keys_with_sha256_fingerprint = [
-            key_entry
-            for key_entry in self._get_key_inventory().keys
-            if key_entry.public_key_sha256_fingerprint == public_key_sha256_fingerprint
-        ]
-        if len(keys_with_sha256_fingerprint) == 0:
-            return None
-        if len(keys_with_sha256_fingerprint) > 1:
-            raise DevIdModuleCorrupted
-        return keys_with_sha256_fingerprint[0]
-
-    def _get_certificate_entry_by_certificate_index(
-        self, certificate_index: int
-    ) -> None | CertificateInventoryEntry:
-        certificate_with_certificate_index = [
-            certificate_entry
-            for certificate_entry in self._get_certificate_inventory().certificates
-            if certificate_entry.certificate_index == certificate_index
-        ]
-        if len(certificate_with_certificate_index) == 0:
-            return None
-        if len(certificate_with_certificate_index) > 1:
-            raise DevIdModuleCorrupted
-        return certificate_with_certificate_index[0]
-
-    def _get_certificate_entry_by_certificate_sha256_fingerprint(
-        self, certificate_sha256_fingerprint: str
-    ) -> None | CertificateInventoryEntry:
-        certificates_with_sha256_fingerprint = [
-            certificate_entry
-            for certificate_entry in self._get_certificate_inventory().certificates
-            if certificate_entry.certificate_sha256_fingerprint
-            == certificate_sha256_fingerprint
-        ]
-        if len(certificates_with_sha256_fingerprint) == 0:
-            return None
-        if len(certificates_with_sha256_fingerprint) > 1:
-            raise DevIdModuleCorrupted
-        return certificates_with_sha256_fingerprint[0]
-
-    def _get_key_entry_by_certificate_index(
-        self, certificate_index: int
-    ) -> None | KeyInventoryEntry:
-        certificate_entry = self._get_certificate_entry_by_certificate_index(
-            certificate_index=certificate_index
-        )
-        return self._get_key_entry_by_key_index(certificate_entry.key_index)
-
-    def _get_certificate_entries_by_key_index(
-        self, key_index: int
-    ) -> list[CertificateInventoryEntry]:
-        return [
-            certificate_entry
-            for certificate_entry in self._get_certificate_inventory().certificates
-            if certificate_entry.key_index == key_index
-        ]
+        return certificate_chain

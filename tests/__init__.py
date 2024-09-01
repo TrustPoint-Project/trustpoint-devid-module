@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from pathlib import Path
 
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -9,32 +10,29 @@ from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed448, ed25519
 import datetime
 from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, SECP384R1
 
-from trustpoint_devid_module.util import KeyType
-
 from typing import TYPE_CHECKING
+
+from trustpoint_devid_module.service_interface import DevIdModule
+from trustpoint_devid_module.util import SignatureSuite
 
 if TYPE_CHECKING:
     from typing import Union
-    PrivateKey = Union[rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey, ed25519.Ed25519PrivateKey]
-    PublicKey = Union[rsa.RSAPublicKey, ec.EllipticCurvePublicKey, ed448.Ed448PublicKey, ed25519.Ed25519PublicKey]
+    PrivateKey = Union[rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey]
+    PublicKey = Union[rsa.RSAPublicKey, ec.EllipticCurvePublicKey]
 
 RSA_PUBLIC_EXPONENT = 65537
 
-def generate_key(key_type: KeyType) -> PrivateKey:
-    if key_type == KeyType.RSA2048:
+def generate_key(signature_suite: SignatureSuite) -> PrivateKey:
+    if signature_suite == SignatureSuite.RSA2048_SHA256_PKCS1_v1_5:
         return rsa.generate_private_key(public_exponent=RSA_PUBLIC_EXPONENT, key_size=2048)
-    elif key_type == KeyType.RSA3072:
+    elif signature_suite == SignatureSuite.RSA3072_SHA256_PKCS1_v1_5:
         return rsa.generate_private_key(public_exponent=RSA_PUBLIC_EXPONENT, key_size=3072)
-    elif key_type == KeyType.RSA4096:
+    elif signature_suite == SignatureSuite.RSA4096_SHA256_PKCS1_v1_5:
         return rsa.generate_private_key(public_exponent=RSA_PUBLIC_EXPONENT, key_size=4096)
-    elif key_type == KeyType.SECP256R1:
+    elif signature_suite == SignatureSuite.SECP256R1_SHA256:
         return ec.generate_private_key(SECP256R1())
-    elif key_type == KeyType.SECP384R1:
+    elif signature_suite == SignatureSuite.SECP384R1_SHA384:
         return ec.generate_private_key(SECP384R1())
-    elif key_type == KeyType.ED448:
-        return ed448.Ed448PrivateKey.generate()
-    elif key_type == KeyType.ED25519:
-        return ed25519.Ed25519PrivateKey.generate()
     else:
         err_msg = 'KeyType is not supported.'
         raise RuntimeError(err_msg)
@@ -68,6 +66,14 @@ def generate_certificate(ca: bool, public_key: PublicKey, private_key: PrivateKe
         private_key=private_key, algorithm=algorithm,
     )
 
+@pytest.fixture(scope='function')
+def initialized_tmp_devid_module(request, tmp_path: Path) -> DevIdModule:
+    tmp_path = tmp_path / Path('trustpoint')
+
+    dev_id_module = DevIdModule(tmp_path)
+    dev_id_module.initialize()
+    return dev_id_module
+
 @pytest.fixture(scope='class')
 def private_key_fixture(request) -> PrivateKey:
     return generate_key(request.param)
@@ -88,11 +94,8 @@ def x509_root_ca_certificate(request) -> x509.Certificate:
         subject_cn='Root CA',
         issuer_cn='Root CA')
 
-@pytest.fixture(scope='class', params=[
-    KeyType.RSA2048, KeyType.RSA3072, KeyType.RSA4096,
-    KeyType.SECP256R1, KeyType.SECP384R1,
-    KeyType.ED448, KeyType.ED25519])
-def x509_credential(request) -> tuple[PrivateKey, KeyType, x509.Certificate, list[x509.Certificate]]:
+@pytest.fixture(scope='class')
+def x509_credential(request) -> tuple[PrivateKey, x509.Certificate, list[x509.Certificate]]:
     key_type = request.param
 
     root_key = generate_key(key_type)
@@ -121,4 +124,4 @@ def x509_credential(request) -> tuple[PrivateKey, KeyType, x509.Certificate, lis
         issuer_cn='Issuing CA'
     )
 
-    return ee_key, key_type, ee_cert, [issuing_ca_cert, root_ca_cert]
+    return ee_key, ee_cert, [issuing_ca_cert, root_ca_cert]
