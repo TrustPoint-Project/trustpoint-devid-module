@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from trustpoint_devid_module.util import SignatureSuite
-
 
 class DevIdCertificate(BaseModel):
     model_config = ConfigDict(strict=True, extra='forbid')
