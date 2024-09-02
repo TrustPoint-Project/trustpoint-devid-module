@@ -6,7 +6,7 @@ authors = ["TrustPoint-Project"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 pydantic = "^2.8.2"
 cryptography = "^43.0.0"
 click = "^8.1.7"
