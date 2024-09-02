@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "trustpoint-devid-module"
-version = "0.1.0"
+version = "0.0.1"
 description = ""
-authors = ["AlexHx8472 <alex_mail@posteo.de>"]
+authors = ["TrustPoint-Project"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -56,4 +56,4 @@ convention = "google"
 "rpi_led.py" = ["ERA001"]
 
 [tool.poetry.scripts]
-trustpoint-client = "trustpoint_devid_module.__main__:cli.cli"
+trustpoint-devid-module = "trustpoint_devid_module.__main__:cli.cli"
