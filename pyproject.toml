@@ -54,6 +54,8 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "revpi_led.py" = ["ERA001"]
 "rpi_led.py" = ["ERA001"]
+"tests/*" = ["S101"]
+"trustpoint_devid_module/serializer/__init__.py" = ["I001"]
 
 [tool.poetry.scripts]
 trustpoint-devid-module = "trustpoint_devid_module.__main__:cli.cli"
