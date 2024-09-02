@@ -33,6 +33,13 @@ class DevIdKey(BaseModel):
     public_key: bytes = ...
 
 
+class TrustStore(BaseModel):
+    model_config = ConfigDict(strict=True, extra='forbid')
+
+    trust_store_index: int = ...
+    certificates: list[bytes]
+
+
 class Inventory(BaseModel):
     model_config = ConfigDict(strict=True, extra='forbid')
 
@@ -44,3 +51,5 @@ class Inventory(BaseModel):
 
     public_key_fingerprint_mapping: dict[str, int] = ...
     certificate_fingerprint_mapping: dict[str, int] = ...
+
+    trust_stores: dict[int, TrustStore]
