@@ -1,61 +1,61 @@
 [tool.poetry]
-name = "trustpoint-devid-module"
-version = "0.0.2"
-description = ""
-authors = ["TrustPoint-Project"]
-readme = "README.md"
+name = 'trustpoint-devid-module'
+version = '0.0.3'
+description = ''
+authors = ['TrustPoint-Project']
+readme = 'README.md'
 
 [tool.poetry.dependencies]
-python = "^3.10"
-pydantic = "^2.8.2"
-cryptography = "^43.0.0"
-click = "^8.1.7"
-prettytable = "^3.11.0"
+python = '^3.10'
+pydantic = '^2.8.2'
+cryptography = '^43.0.0'
+click = '^8.1.7'
+prettytable = '^3.11.0'
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.2"
-ruff = "^0.6.3"
+pytest = '^8.3.2'
+ruff = '^0.6.3'
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ['poetry-core']
+build-backend = 'poetry.core.masonry.api'
 
 [tool.ruff]
 line-length = 120
 indent-width = 4
 
 [tool.ruff.lint.flake8-quotes]
-docstring-quotes = "double"
-inline-quotes = "single"
-multiline-quotes = "double"
+docstring-quotes = 'double'
+inline-quotes = 'single'
+multiline-quotes = 'double'
 
 [tool.ruff.lint]
-select = ["ALL"]
+select = ['ALL']
 ignore = [
-    "ANN101", "ANN102", "ANN401",
-    "D203", "D213", "D415",
-    "TD003",
-    "FIX",
-    "COM812",               # Not compatible with the formatter
-    "ISC001"                # Not compatible with the formatter
+    'ANN101', 'ANN102', 'ANN401',
+    'D203', 'D213', 'D415',
+    'TD003',
+    'FIX',
+    'COM812',               # Not compatible with the formatter
+    'ISC001'                # Not compatible with the formatter
 ]
 
 [tool.ruff.format]
-quote-style = "single"
-indent-style = "space"
+quote-style = 'single'
+indent-style = 'space'
 docstring-code-format = true
 
 [tool.ruff.lint.pydocstyle]
-convention = "google"
+convention = 'google'
 
 
 # TODO(Alex): Remove this if we want to use the LED sections
 [tool.ruff.lint.per-file-ignores]
-"revpi_led.py" = ["ERA001"]
-"rpi_led.py" = ["ERA001"]
-"tests/*" = ["S101"]
-"trustpoint_devid_module/serializer/__init__.py" = ["I001"]
+'revpi_led.py' = ['ERA001']
+'rpi_led.py' = ['ERA001']
+'tests/*' = ['S101']
+'trustpoint_devid_module/serializer/__init__.py' = ['I001']
 
 [tool.poetry.scripts]
-trustpoint-devid-module = "trustpoint_devid_module.__main__:cli.cli"
+trustpoint-devid-module = 'trustpoint_devid_module.__main__:cli.cli'
