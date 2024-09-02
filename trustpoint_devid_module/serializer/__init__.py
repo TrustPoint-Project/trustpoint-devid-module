@@ -49,18 +49,19 @@ API Documentation
     - cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey
 """
 
+
 from .base import PrivateKey, PublicKey, Serializer
 from .key import PrivateKeySerializer, PublicKeySerializer
 from .certificate import CertificateCollectionSerializer, CertificateSerializer
 from .credential import CredentialSerializer
 
 __all__ = [
-    "PublicKey",
-    "PrivateKey",
-    "Serializer",
-    "CertificateSerializer",
-    "CertificateCollectionSerializer",
-    "PublicKeySerializer",
-    "PrivateKeySerializer",
-    "CredentialSerializer",
+    'PublicKey',
+    'PrivateKey',
+    'Serializer',
+    'CertificateSerializer',
+    'CertificateCollectionSerializer',
+    'PublicKeySerializer',
+    'PrivateKeySerializer',
+    'CredentialSerializer',
 ]
