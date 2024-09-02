@@ -1,10 +1,11 @@
+"""Module that contains the pydantic models to store and load the Trustpoint DevID Module data."""
 from __future__ import annotations
-
 
 from pydantic import BaseModel, ConfigDict
 
 
 class DevIdCertificate(BaseModel):
+    """The DevID Certificate model containing all DevID certificates."""
     model_config = ConfigDict(strict=True, extra='forbid')
 
     certificate_index: int = ...
@@ -19,6 +20,7 @@ class DevIdCertificate(BaseModel):
 
 
 class DevIdKey(BaseModel):
+    """The DevID Key model containing all private and public key pairs."""
     model_config = ConfigDict(strict=True, extra='forbid')
 
     key_index: int = ...
@@ -34,6 +36,7 @@ class DevIdKey(BaseModel):
 
 
 class Inventory(BaseModel):
+    """The inventory model containing all data corresponding to the Trustpoint DevID Module."""
     model_config = ConfigDict(strict=True, extra='forbid')
 
     next_key_index: int = ...
