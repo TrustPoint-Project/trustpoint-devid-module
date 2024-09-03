@@ -30,6 +30,42 @@ class DevIdModuleError(Exception):
         super().__init__(message)
 
 
+class DevIdModuleNotImplementedError(DevIdModuleError):
+    """If a method is not yet implemented."""
+
+    def __init__(self, method_name: str) -> None:
+        """Initializes the DevIdModuleNotImplementedError.
+
+        Args:
+            method_name: The name of the method that is not yet implemented.
+        """
+        super().__init__(f'Method {method_name} is not yet implemented.')
+
+
+class CorruptedKeyDataError(DevIdModuleError):
+    """Raised if the key data could not be loaded."""
+
+    def __init__(self) -> None:
+        """Initializes the CorruptedKeyDataError."""
+        super().__init__('Failed to load the provided DevID Key. Either it is malformed or the password is incorrect.')
+
+
+class CorruptedCertificateDataError(DevIdModuleError):
+    """Raised if the certificate data could not be loaded."""
+
+    def __init__(self) -> None:
+        """Initializes the CorruptedCertificateDataError."""
+        super().__init__('Failed to load the provided DevID Certificate. Data seems to be malformed.')
+
+
+class CorruptedCertificateChainDataError(DevIdModuleError):
+    """Raised if the certificate chain data could not be loaded."""
+
+    def __init__(self) -> None:
+        """Initializes the CorruptedCertificateChainDataError."""
+        super().__init__('Failed to load the provided DevID Certificate Chain. Data seems to be malformed.')
+
+
 class NotInitializedError(DevIdModuleError):
     """Raised if trying to use the DevID Module"""
 
@@ -46,13 +82,36 @@ class AlreadyInitializedError(DevIdModuleError):
         super().__init__('Already initialized.')
 
 
+class WorkingDirectoryAlreadyExistsError(DevIdModuleError):
+    """Raised if the working directory exists while the operation does expect it to not exist."""
+
+    def __init__(self) -> None:
+        """Initializes the WorkingDirectoryAlreadyExistsError."""
+        super().__init__('Working directory already exists.')
+
+
+class InventoryDataWriteError(DevIdModuleError):
+    """Raised if writing to the inventory data failed."""
+
+    def __init__(self) -> None:
+        """Initializes the InventoryDataWriteError."""
+        super().__init__('Writing new data to the inventory failed.')
+
+
+class PurgeError(DevIdModuleError):
+    """Raised if purging the working directory failed."""
+
+    def __init__(self) -> None:
+        """Initializes the PurgeError."""
+        super().__init__('Failed to purge the working directory.')
+
+
 class DevIdModuleCorruptedError(DevIdModuleError):
     """Raised if the DevID Module stored data is corrupted."""
     def __init__(self) -> None:
         """Initializes the DevIdModuleCorruptedError."""
         super().__init__(
-            'Critical Failure. DevID module data is corrupted.' 'You may need to call purge and thus remove all data.'
-        )
+            'Critical Failure. DevID module data is corrupted.' 'You may need to call purge and thus remove all data.')
 
 
 class NothingToPurgeError(DevIdModuleError):
@@ -61,6 +120,168 @@ class NothingToPurgeError(DevIdModuleError):
     def __init__(self) -> None:
         """Initializes the NothingToPurgeError."""
         super().__init__('The working directory does not exist. Nothing to purge.')
+
+
+class DevIdKeyNotFoundError(DevIdModuleError):
+    """Raised if the required DevID Key was not found."""
+
+    def __init__(self, key_index: None | int = None, public_key_sha256_fingerprint: None | str = None) -> None:
+        """Initializes the DevIdKeyNotFoundError.
+
+        Usually, either expects the key index or the sha256 fingerprint of the public key.
+
+        Args:
+            key_index: Index of the DevID Key that was not found.
+            public_key_sha256_fingerprint: SHA256 Fingerprint of the public key that was not found.
+        """
+        if key_index is None and public_key_sha256_fingerprint is None:
+            super().__init__('DevID Key not found.')
+        elif key_index:
+            super().__init__(f'DevID Key with key index {key_index} not found.')
+        else:
+            super().__init__(
+                f'No matching DevID Key found for the SHA256 public key fingerprint: {public_key_sha256_fingerprint}.')
+
+
+class DevIdKeyExistsError(DevIdModuleError):
+    """Raised if the DevID Key already exists."""
+
+    def __init__(self, key_index: int) -> None:
+        """Initializes the DevIdKeyExistsError.
+
+        Args:
+            key_index: Key index of the DevID Key that already exists.
+        """
+        super().__init__(f'DevID Key already exists with key index {key_index}.')
+
+
+class DevIdCertificateNotFoundError(DevIdModuleError):
+    """Raised if the required DevID Certificate was not found."""
+
+    def __init__(self, certificate_index: None | int = None, certificate_sha256_fingerprint: None | str = None) -> None:
+        """Initializes the DevIdCertificateNotFoundError.
+
+        Usually, either expects the certificate index or the sha256 fingerprint of the certificate.
+
+        Args:
+            certificate_index: Index of the DevID Certificate that was not found.
+            certificate_sha256_fingerprint: SHA256 Fingerprint of the certificate that was not found.
+        """
+        if certificate_index is None and certificate_sha256_fingerprint is None:
+            super().__init__('DevID Certificate not found.')
+        elif certificate_index:
+            super().__init__(f'DevID Certificate with certificate index {certificate_index} not found.')
+        else:
+            super().__init__(
+                f'No matching DevID Certificate found for the SHA256 '
+                f'certificate fingerprint: {certificate_sha256_fingerprint}.')
+
+
+class DevIdCertificateExistsError(DevIdModuleError):
+    """Raised if the DevID Certificate already exists."""
+
+    def __init__(self, certificate_index: int) -> None:
+        """Initializes the DevIdCertificateExistsError.
+
+        Args:
+            certificate_index: The certificate index of the DevID Certificate that already exists.
+        """
+        super().__init__(f'DevID Certificate already exists with certificate index {certificate_index}.')
+
+
+class DevIdCertificateChainNotFoundError(DevIdModuleError):
+    """Raised if the required DevID Certificate Chain was not found."""
+
+    def __init__(self, certificate_index: int) -> None:
+        """Initializes the DevIdCertificateChainNotFoundError.
+
+        Args:
+            certificate_index:
+                The certificate index of the DevID Certificate that does not have an associated certificate chain.
+        """
+        super().__init__(
+            f'No DevID Certificate Chain found for the DevID Certificate with certificate index {certificate_index}.')
+
+
+class DevIdCertificateChainExistsError(DevIdModuleError):
+    """Raised if the DevID Certificate Chain already exists."""
+
+    def __init__(self, certificate_index: int) -> None:
+        """Initializes the DevIdCertificateChainExistsError.
+
+        Args:
+            certificate_index:
+                The certificate index of the DevID Certificate that already has an associated certificate chain.
+        """
+        super().__init__(
+            f'The DevID Certificate Chain already exists for the DevID Certificate '
+            f'with certificate index {certificate_index}.'
+        )
+
+class DevIdKeyIsDisabledError(DevIdModuleError):
+    """Raised if the DevID Key is disabled, but the operation requires an enabled DevID Key."""
+
+    def __init__(self, key_index: int) -> None:
+        """Initializes the DevIdKeyIsDisabledError.
+
+        Args:
+            key_index: The key index of the DevID Key that is disabled.
+        """
+        super().__init__(f'The DevID Key with key index {key_index} is disabled.')
+
+
+class DevIdCertificateIsDisabledError(DevIdModuleError):
+    """Raised if the DevID Certificate is disabled, but the operation requires an enabled DevID Certificate."""
+
+    def __init__(self, certificate_index: int) -> None:
+        """Initializes the DevIdCertificateIsDisabledError.
+
+        Args:
+            certificate_index: The certificate index of the DevID Certificate that is disabled.
+        """
+        super().__init__(f'The DevID Certificate with certificate index {certificate_index} is disabled.')
+
+
+class IDevIdKeyDeletionError(DevIdModuleError):
+    """Raised if trying to delete an IDevID Key."""
+
+    def __init__(self, key_index: int) -> None:
+        """Initializes the IDevIdKeyDeletionError.
+
+        Args:
+            key_index: The key index of the IDevID Key that was tried to be deleted.
+        """
+        super().__init__(f'The DevID Key with key index {key_index} is an IDevID Key and thus cannot be deleted.')
+
+
+class IDevIdCertificateDeletionError(DevIdModuleError):
+    """Raised if trying to delete an IDevID Certificate."""
+
+    def __init__(self, certificate_index: int) -> None:
+        """Initializes the IDevIdCertificateDeletionError.
+
+        Args:
+            certificate_index: The certificate index of the IDevID Certificate that was tried to be deleted.
+        """
+        super().__init__(
+            f'The DevID Certificate with certificate index {certificate_index} '
+            'is an IDevID Certificate and thus cannot be deleted.')
+
+
+class IDevIdCertificateChainDeletionError(DevIdModuleError):
+    """Raised if trying to delete an IDevID Certificate Chain."""
+
+    def __init__(self, certificate_index: int) -> None:
+        """Initializes the IDevIdCertificateChainDeletionError.
+
+        Args:
+            certificate_index:
+                The certificate index of the IDevID Certificate
+                corresponding to the certificate chain that was tried to be deleted.
+        """
+        super().__init__(
+            f'The DevID Certificate with certificate index {certificate_index} '
+            'is an IDevID Certificate and thus its certificate chain cannot be deleted.')
 
 
 class DevIdModule:
@@ -75,6 +296,9 @@ class DevIdModule:
 
         Args:
             working_dir: The desired working directory.
+
+        Raises:
+            DevIdModuleCorruptedError: If the DevID Module failed to load and verify the data from storage.
         """
         self._working_dir = Path(working_dir)
         self._inventory_path = self.working_dir / 'inventory.json'
@@ -85,20 +309,25 @@ class DevIdModule:
                     self._inventory = Inventory.model_validate_json(f.read())
                 self._is_initialized = True
             except pydantic.ValidationError as exception:
-                err_msg = 'Failed to load inventory. Data seems to be corrupt.'
-                raise RuntimeError(err_msg) from exception
+                raise DevIdModuleCorruptedError from exception
 
     def initialize(self) -> None:
         """Initializes the DevID Module.
 
         Creates the working directory and the json inventory file.
-        """
-        # TODO(AlexHx8472): Exception handling
-        if self._inventory is not None:
-            err_msg = 'Trustpoint DevID Module is already initialized.'
-            raise RuntimeError(err_msg)
 
-        Path.mkdir(self.working_dir, parents=True)
+        Raises:
+            AlreadyInitializedError: If the DevID Module is already initialized.
+            WorkingDirectoryAlreadyExists: If the working directory already exists.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
+        """
+        if self._inventory is not None:
+            raise AlreadyInitializedError
+
+        try:
+            Path.mkdir(self.working_dir, parents=True, exist_ok=False)
+        except FileExistsError as exception:
+            raise WorkingDirectoryAlreadyExistsError from exception
 
         inventory = Inventory(
             next_key_index=0,
@@ -109,12 +338,25 @@ class DevIdModule:
             certificate_fingerprint_mapping={},
         )
 
-        self.inventory_path.write_text(inventory.model_dump_json())
+        try:
+            self.inventory_path.write_text(inventory.model_dump_json())
+        except Exception as exception:
+            raise InventoryDataWriteError from exception
         self._inventory = inventory
 
     def purge(self) -> None:
-        """Purges (deletes) all stored data corresponding to the DevID Module."""
-        shutil.rmtree(self.working_dir, ignore_errors=True)
+        """Purges (deletes) all stored data corresponding to the DevID Module.
+
+        Raises:
+            NothingToPurgeError: If the working directory does not exist and thus there is nothing to purge.
+            PurgeError: If the DevID Module failed to purge and delete the working directory.
+        """
+        try:
+            shutil.rmtree(self.working_dir)
+        except FileNotFoundError as exception:
+            raise NothingToPurgeError from exception
+        except Exception as exception:
+            raise PurgeError from exception
         self._inventory = None
 
     @property
@@ -141,12 +383,20 @@ class DevIdModule:
 
         Returns:
             Inventory: A model copy of the current inventory.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
         """
+        if self._inventory is None:
+            raise NotInitializedError
         return self._inventory.model_copy()
 
     def _store_inventory(self, inventory: Inventory) -> None:
-        self.inventory_path.write_text(inventory.model_dump_json())
-        self._inventory = inventory
+        try:
+            self.inventory_path.write_text(inventory.model_dump_json())
+            self._inventory = inventory
+        except Exception as exception:
+            raise InventoryDataWriteError from exception
 
     def insert_ldevid_key(
             self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None) -> int:
@@ -158,13 +408,18 @@ class DevIdModule:
 
         Returns:
             int: The key index of the newly inserted private key.
+
+        Raises:
+            CorruptedKeyDataError: If the DevID Module failed to load the provided key data.
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdKeyExistsError: If the provided key is already stored as DevID Key.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        try:
+            private_key = PrivateKeySerializer(private_key, password)
+        except Exception as exception:
+            raise CorruptedKeyDataError from exception
 
-        # get private key serializer
-        private_key = PrivateKeySerializer(private_key, password)
-
-        # get key type and signature suite
         signature_suite = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
 
         private_key_bytes = private_key.as_pkcs8_pem()
@@ -172,10 +427,10 @@ class DevIdModule:
         public_key_bytes = private_key.public_key_serializer.as_pem()
         public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(public_key_bytes)
 
-        # TODO(AlexHx8472): Exception handling
+        inventory = self.inventory
         if public_key_sha256_fingerprint in inventory.public_key_fingerprint_mapping:
-            err_msg = 'Key already stored.'
-            raise ValueError(err_msg)
+            raise DevIdKeyExistsError(
+                key_index=inventory.public_key_fingerprint_mapping[public_key_sha256_fingerprint])
 
         new_key_index = inventory.next_key_index
         devid_key = DevIdKey(
@@ -205,25 +460,36 @@ class DevIdModule:
 
         Returns:
             int: The certificate index of the newly inserted certificate.
+
+        Raises:
+            CorruptedCertificateDataError: If the DevID Module failed to load the provided certificate data.
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateExistsError: If the DevID Certificate already exists.
+            DevIdKeyNotFoundError: If no DevID Key was found that matches the provided certificate.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
-        certificate = CertificateSerializer(certificate)
+        try:
+            certificate = CertificateSerializer(certificate)
+        except Exception as exception:
+            raise CorruptedCertificateDataError from exception
         public_key = certificate.public_key_serializer
 
-        # get key type and signature suite
         signature_suite = SignatureSuite.get_signature_suite_from_certificate(certificate)
 
         certificate_bytes = certificate.as_pem()
         certificate_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(certificate_bytes)
 
+        inventory = self.inventory
+        if certificate_sha256_fingerprint in inventory.certificate_fingerprint_mapping:
+            raise DevIdCertificateExistsError(
+                certificate_index=inventory.certificate_fingerprint_mapping[certificate_sha256_fingerprint])
+
         public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(public_key.as_pem())
 
         key_index = inventory.public_key_fingerprint_mapping.get(public_key_sha256_fingerprint)
 
-        # TODO(AlexHx8472): Exception handling
         if key_index is None:
-            err_msg = 'No matching key for the provided certificate found.'
-            raise ValueError(err_msg)
+            raise DevIdKeyNotFoundError
 
         new_certificate_index = inventory.next_certificate_index
         devid_certificate = DevIdCertificate(
@@ -262,16 +528,27 @@ class DevIdModule:
 
         Returns:
             int: The certificate index of the certificate containing the newly inserted certificate chain.
-        """
-        certificate_chain = CertificateCollectionSerializer(certificate_chain)
-        inventory = self.inventory.model_copy()
 
+        Raises:
+            CorruptedCertificateChainDataError: If the DevID Module failed to load the provided certificate chain data.
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateNotFoundError: If no DevID Certificate for the provided certificate index was found.
+            DevIdCertificateChainExistsError: If the associated DevID Certificate already contains a certificate chain.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
+        """
+        try:
+            certificate_chain = CertificateCollectionSerializer(certificate_chain)
+        except Exception as exception:
+            raise CorruptedCertificateChainDataError from exception
+
+        inventory = self.inventory
         certificate = inventory.devid_certificates.get(certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if certificate is None:
-            err_msg = 'No certificate for certificate index found.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
+
+        if certificate.certificate_chain:
+            raise DevIdCertificateChainExistsError(certificate_index=certificate_index)
 
         certificate.certificate_chain.extend(certificate_chain.as_pem_list())
 
@@ -286,20 +563,22 @@ class DevIdModule:
 
         Args:
             key_index: The key index for the key to be deleted.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdKeyNotFoundError: If no DevID Key for the provided key index was found.
+            IDevIdKeyDeletionError: If the DevID Key is an IDevID Key and thus cannot be deleted.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
 
         devid_key = inventory.devid_keys.get(key_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_key is None:
-            err_msg = 'No key for key index found.'
-            raise ValueError(err_msg)
+            raise DevIdKeyNotFoundError(key_index=key_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_key.is_idevid_key:
-            err_msg = 'This key is an IDevID key. Cannot delete it.'
-            raise ValueError(err_msg)
+            raise IDevIdKeyDeletionError(key_index=key_index)
 
         for certificate_index in devid_key.certificate_indices:
             del inventory.devid_certificates[certificate_index]
@@ -326,20 +605,23 @@ class DevIdModule:
 
         Args:
             certificate_index: The certificate index for the certificate to be deleted.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateNotFoundError: If no DevID Certificate was found for the provided certificate index.
+            IDevIdCertificateDeletionError:
+                If the DevID Certificate is an IDevID certificate and thus cannot be deleted.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
 
         devid_certificate = inventory.devid_certificates.get(certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate is None:
-            err_msg = 'No certificate for the certificate index found.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate.is_idevid:
-            err_msg = 'This certificate is an IDevID certificate. Cannot delete it.'
-            raise ValueError(err_msg)
+            raise IDevIdCertificateDeletionError(certificate_index=certificate_index)
 
         del inventory.devid_certificates[certificate_index]
         inventory.certificate_fingerprint_mapping = {
@@ -355,25 +637,27 @@ class DevIdModule:
 
         Args:
             certificate_index: The certificate index for the certificate containing the certificate chain to be deleted.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateNotFoundError: If the DevID Certificate was found for the provided certificate index.
+            IDevIdCertificateChainDeletionError:
+                If the DevID Certificate is an IDevID Certificate and thus its certificate chain cannot be deleted.
+            DevIdCertificateChainNotFoundError: If the DevID Certificate has no associated certificate chain.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
 
         devid_certificate = inventory.devid_certificates.get(certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate is None:
-            err_msg = 'No certificate for the certificate index found.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate.is_idevid:
-            err_msg = 'This certificate chain is part of an IDevID certificate. Cannot delete it.'
-            raise ValueError(err_msg)
+            IDevIdCertificateChainDeletionError(certificate_index=certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if not devid_certificate.certificate_chain:
-            err_msg = 'No certificate chain found to delete for the provided certificate index.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateChainNotFoundError(certificate_index=certificate_index)
 
         devid_certificate.certificate_chain = []
 
@@ -382,12 +666,16 @@ class DevIdModule:
     def add_rng_entropy(self, entropy: bytes) -> None:  # noqa: ARG002
         """Adds entropy to the RNG.
 
+        Warnings:
+            This is not yet implemented and will raise an DevIdModuleNotImplementedError.
+
         Args:
             entropy: Up to 256 random bytes.
+
+        Raises:
+            DevIdModuleNotImplementedError: Will be raised, since this method is not yet implemented.
         """
-        # TODO(AlexHx8472): Exception handling
-        err_msg = 'Not yet implemented.'
-        raise NotImplementedError(err_msg)
+        raise DevIdModuleNotImplementedError(method_name='add_rng_entropy')
 
     def sign(self, key_index: int, data: bytes) -> bytes:
         """Signs the provided data (bytes) with the key corresponding to the provided key index.
@@ -399,20 +687,24 @@ class DevIdModule:
         Returns:
             The signature of the provided data, signed by the key corresponding to the provided key index.
         """
+        # TODO(AlexHx8472): Implement this method
 
     def enable_devid_key(self, key_index: int) -> None:
         """Enables the DevID key corresponding to the provided key index.
 
         Args:
             key_index: The key index of the key to be enabled.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdKeyNotFoundError: If no DevID Key for the provided key index was found.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
         devid_key = inventory.devid_keys.get(key_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_key is None:
-            err_msg = 'No key for key index found.'
-            raise ValueError(err_msg)
+            raise DevIdKeyNotFoundError(key_index=key_index)
 
         inventory.devid_keys[key_index].is_enabled = True
 
@@ -423,14 +715,17 @@ class DevIdModule:
 
         Args:
             key_index: The key index of the key to be disabled.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdKeyNotFoundError: If no DevID Key for the provided key index was found.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
         devid_key = inventory.devid_keys.get(key_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_key is None:
-            err_msg = 'No key for key index found.'
-            raise ValueError(err_msg)
+            raise DevIdKeyNotFoundError(key_index=key_index)
 
         inventory.devid_keys[key_index].is_enabled = False
 
@@ -441,14 +736,17 @@ class DevIdModule:
 
         Args:
             certificate_index: The certificate index of the certificate to be enabled.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateNotFoundError: If the DevID Certificate was found for the provided certificate index.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
         devid_certificate = inventory.devid_certificates.get(certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate is None:
-            err_msg = 'No certificate for certificate index found.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
         inventory.devid_keys[certificate_index].is_enabled = True
 
@@ -459,14 +757,17 @@ class DevIdModule:
 
         Args:
             certificate_index: The certificate index of the certificate to be disabled.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateNotFoundError: If the DevID Certificate was found for the provided certificate index.
+            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
-        inventory = self.inventory.model_copy()
+        inventory = self.inventory
         devid_certificate = inventory.devid_certificates.get(certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate is None:
-            err_msg = 'No certificate for certificate index found.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
         inventory.devid_keys[certificate_index].is_enabled = False
 
@@ -478,10 +779,13 @@ class DevIdModule:
 
         Returns:
             A list of 4-tuples containing the following:
-            - key_index (int)
-            - is_enabled (bool)
-            - subject_public_key_info (str)
-            - is_devid_key (bool)
+            - int: key index (int)
+            - bool: if the DevID Key is enabled (bool)
+            - str: the subject public key info corresponding to the key and signature suite (str)
+            - bool: if the DevID Key is an IDevID Key
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
         """
         return [
             (
@@ -498,11 +802,18 @@ class DevIdModule:
 
         Returns:
             A list of 5-tuples containing the following:
-            - certificate index
-            - corresponding key index
-            -
+            - int: certificate index
+            - int: corresponding key index
+            - bool: if the DevID Certificate is enabled
+            - bool: if the DevID Certificate is an IDevID Certificate
+            - bytes: the certificate as DER encoded bytes
+
+        Note:
             The first certificate in the list is the issuing ca certificate.
             The last certificate may be the root ca certificate, if it is included.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
         """
         enumerated_certificates = []
         for devid_certificate_index, devid_certificate in self.inventory.devid_certificates.items():
@@ -527,25 +838,28 @@ class DevIdModule:
 
         Returns:
             A list of certificates in DER encoded bytes.
+
+        Note:
             The first certificate in the list is the issuing ca certificate.
             The last certificate may be the root ca certificate, if it is included.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdCertificateNotFoundError: If the DevID Certificate was found for the provided certificate index.
+            DevIdCertificateChainNotFoundError: If the DevID Certificate has no associated certificate chain.
+            DevIdCertificateIsDisabledError:
+                If the DevID Certificate associated with the certificate chain is disabled.
         """
         devid_certificate = self.inventory.devid_certificates.get(certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate is None:
-            err_msg = 'No certificate for certificate index found.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if not devid_certificate.certificate_chain:
-            err_msg = 'No certificate chain found for the provided certificate index.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateChainNotFoundError(certificate_index=certificate_index)
 
-        # TODO(AlexHx8472): Exception handling
         if devid_certificate.is_enabled is False:
-            err_msg = 'The DevID certificate with given certificate_index is disabled.'
-            raise ValueError(err_msg)
+            raise DevIdCertificateIsDisabledError(certificate_index=certificate_index)
 
         return [
             CertificateSerializer(certificate_bytes).as_der()
