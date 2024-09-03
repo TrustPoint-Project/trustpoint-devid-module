@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Union
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import padding as crypto_padding
 from cryptography.x509.oid import PublicKeyAlgorithmOID, SignatureAlgorithmOID
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class SignatureSuite(enum.Enum):
         - Public Key Type
         - Private Key Type
         - Key Size
+        - Padding
         - Named Curve
         - Hash Algorithm
         - Signature Algorithm OID
@@ -49,6 +51,7 @@ class SignatureSuite(enum.Enum):
         rsa.RSAPublicKey,
         rsa.RSAPrivateKey,
         RSA_2048_KEY_SIZE,
+        crypto_padding.PKCS1v15,
         None,
         hashes.SHA256,
         SignatureAlgorithmOID.RSA_WITH_SHA256,
@@ -61,6 +64,7 @@ class SignatureSuite(enum.Enum):
         rsa.RSAPublicKey,
         rsa.RSAPrivateKey,
         RSA_3072_KEY_SIZE,
+        crypto_padding.PKCS1v15,
         None,
         hashes.SHA256,
         SignatureAlgorithmOID.RSA_WITH_SHA256,
@@ -73,6 +77,7 @@ class SignatureSuite(enum.Enum):
         rsa.RSAPublicKey,
         rsa.RSAPrivateKey,
         RSA_4096_KEY_SIZE,
+        crypto_padding.PKCS1v15,
         None,
         hashes.SHA256,
         SignatureAlgorithmOID.RSA_WITH_SHA256,
@@ -85,6 +90,7 @@ class SignatureSuite(enum.Enum):
         ec.EllipticCurvePublicKey,
         ec.EllipticCurvePrivateKey,
         SECP256R1_KEY_SIZE,
+        None,
         ec.SECP256R1,
         hashes.SHA256,
         SignatureAlgorithmOID.ECDSA_WITH_SHA256,
@@ -97,9 +103,10 @@ class SignatureSuite(enum.Enum):
         ec.EllipticCurvePublicKey,
         ec.EllipticCurvePrivateKey,
         SECP384R1_KEY_SIZE,
+        None,
         ec.SECP384R1,
         hashes.SHA384,
-        SignatureAlgorithmOID.ECDSA_WITH_SHA256,
+        SignatureAlgorithmOID.ECDSA_WITH_SHA384,
         PublicKeyAlgorithmOID.EC_PUBLIC_KEY,
         'secp384r1',
     )
@@ -110,6 +117,7 @@ class SignatureSuite(enum.Enum):
         public_key_type: type[PublicKey],
         private_key_type: type[PrivateKey],
         key_size: int,
+        padding: None | crypto_padding.AsymmetricPadding,
         named_curve_type: type[ec.EllipticCurve] | None,
         hash_algorithm: type[HashAlgorithm] | None,
         signature_algorithm_oid: SignatureAlgorithmOID,
@@ -123,6 +131,7 @@ class SignatureSuite(enum.Enum):
         obj.public_key_type = public_key_type
         obj.private_key_type = private_key_type
         obj.key_size = key_size
+        obj.padding = padding
         obj.named_curve_type = named_curve_type
         obj.hash_algorithm = hash_algorithm
         obj.signature_algorithm_oid = signature_algorithm_oid

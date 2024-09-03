@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pydantic
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from trustpoint_devid_module.schema import DevIdCertificate, DevIdKey, Inventory
 from trustpoint_devid_module.serializer import (
@@ -20,7 +21,11 @@ from trustpoint_devid_module.util import (
 )
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from cryptography import x509
+    from cryptography.hazmat.primitives.asymmetric.padding import AsymmetricPadding
+    from cryptography.hazmat.primitives.hashes import HashAlgorithm
 
 
 # ------------------------------------------------- Custom Exceptions --------------------------------------------------
@@ -293,6 +298,37 @@ class UnsupportedKeyTypeError(DevIdModuleError):
     def __init__(self) -> None:
         """Initializes the UnsupportedKeyTypeError."""
         super().__init__('The provided key type is not supported by the DevID Module.')
+
+
+class UnexpectedDevIdModuleError(DevIdModuleError):
+    """Raised if an unexpected error occurred, e.g. not supported key type found in the inventory."""
+
+    def __init__(self, message: str) -> None:
+        """Initializes the UnexpectedDevIdModuleError.
+
+        Args:
+            message: Description of the error that occurred.
+        """
+        super().__init__(f'An unexpected error occurred. {message}')
+
+class DataTypeError(DevIdModuleError):
+    """Raised if the provided data is not of type bytes."""
+
+    def __init__(self, data: Any) -> None:
+        """Initializes the DataTypeError.
+
+        Args:
+            data: The data object received.
+        """
+        super().__init__(f'Expected data to be of type bytes, but got {type(data)}.')
+
+
+class EmptyDataError(DevIdModuleError):
+    """Raised if the provided data is an empty bytes object."""
+
+    def __init__(self) -> None:
+        """Initializes the EmptyDataError."""
+        super().__init__('The provided data object is an empty bytes object.')
 
 
 # ---------------------------------------------------- DevID Module ----------------------------------------------------
@@ -905,5 +941,64 @@ class DevIdModule:
 
         Returns:
             The signature of the provided data, signed by the key corresponding to the provided key index.
+
+        Raises:
+            DataTypeError: If the provided data is not a bytes object.
+            EmptyDataError: If the provided data is an empty bytes object.
+            NotInitializedError: If the DevID Module is not yet initialized.
+            DevIdKeyNotFoundError: If no DevID Key for the provided key index was found.
+            DevIdKeyIsDisabledError: If the DevID Key for the provided key index is disabled.
         """
-        # TODO(AlexHx8472): Implement this method
+        if not isinstance(data, bytes):
+            raise DataTypeError(data=data)
+
+        if not data:
+            raise EmptyDataError
+
+        inventory = self.inventory
+        devid_key = inventory.devid_keys.get(key_index)
+
+        if devid_key is None:
+            raise DevIdKeyNotFoundError(key_index=key_index)
+
+        if devid_key.is_enabled is False:
+            raise DevIdKeyIsDisabledError(key_index=key_index)
+
+
+        try:
+            private_key = PrivateKeySerializer(devid_key.private_key)
+            signature_suite = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
+        except Exception as exception:
+            raise UnexpectedDevIdModuleError(
+                message=f'The key type of the DevID Key with key index {key_index} is not supported.') from exception
+
+        crypto_private_key = private_key.as_crypto()
+        if isinstance(signature_suite.private_key_type, rsa.RSAPrivateKey):
+            return self._sign_data_with_rsa_key(
+                crypto_private_key,
+                data,
+                signature_suite.padding,
+                signature_suite.hash_algorithm())
+
+        if isinstance(signature_suite.private_key_type, ec.EllipticCurvePrivateKey):
+            return self._sign_data_with_ec_key_and_ecdsa(crypto_private_key, data, signature_suite.hash_algorithm())
+
+        raise UnexpectedDevIdModuleError(
+            message=(
+                f'The key type of the DevID Key with key index {key_index} '
+                f'found in the inventory is not supported for signing operations.'))
+
+    @staticmethod
+    def _sign_data_with_rsa_key(
+            private_key: PrivateKey,
+            data: bytes,
+            padding: AsymmetricPadding,
+            hash_algorithm: HashAlgorithm) -> bytes:
+        return private_key.sign(
+            data,
+            padding,
+            hash_algorithm)
+
+    @staticmethod
+    def _sign_data_with_ec_key_and_ecdsa(private_key: PrivateKey, data: bytes, hash_algorithm: HashAlgorithm) -> bytes:
+        return private_key.sign(data, ec.ECDSA(hash_algorithm))
