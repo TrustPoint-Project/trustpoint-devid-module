@@ -83,9 +83,6 @@ def status() -> None:
 def initialize() -> None:
     """Initializes the DevID Module."""
     devid_module = get_devid_module()
-    if devid_module.inventory:
-        click.echo(f'\nDevID Module is already initialized with working directory: {devid_module.working_dir}.\n')
-        return
 
     devid_module.initialize()
     click.echo('\nDevID Module successfully initialized.\n')
