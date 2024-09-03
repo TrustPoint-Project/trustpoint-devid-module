@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from cryptography import x509
 
 
+# ------------------------------------------------- Custom Exceptions --------------------------------------------------
+
+
 class DevIdModuleError(Exception):
     """Base class for all DevID Module Exceptions."""
     def __init__(self, message: str) -> None:
@@ -284,6 +287,9 @@ class IDevIdCertificateChainDeletionError(DevIdModuleError):
             'is an IDevID Certificate and thus its certificate chain cannot be deleted.')
 
 
+# ---------------------------------------------------- DevID Module ----------------------------------------------------
+
+
 class DevIdModule:
     """The Trustpoint DevID Module class."""
     _working_dir: Path
@@ -310,6 +316,42 @@ class DevIdModule:
                 self._is_initialized = True
             except pydantic.ValidationError as exception:
                 raise DevIdModuleCorruptedError from exception
+
+    # --------------------------------------------- DevIdModule Properties ---------------------------------------------
+
+    @property
+    def working_dir(self) -> Path:
+        """Returns the Path instance containing the working directory path.
+
+        Returns:
+            Path: The Path instance containing the working directory path.
+        """
+        return self._working_dir
+
+    @property
+    def inventory_path(self) -> Path:
+        """Returns the Path instance containing the inventory file path.
+
+        Returns:
+            Path: The Path instance containing the inventory file path.
+        """
+        return self._inventory_path
+
+    @property
+    def inventory(self) -> Inventory:
+        """Returns the current inventory as a model copy.
+
+        Returns:
+            Inventory: A model copy of the current inventory.
+
+        Raises:
+            NotInitializedError: If the DevID Module is not yet initialized.
+        """
+        if self._inventory is None:
+            raise NotInitializedError
+        return self._inventory.model_copy()
+
+    # -------------------------------------- Initialization, Purging and Storing ---------------------------------------
 
     def initialize(self) -> None:
         """Initializes the DevID Module.
@@ -359,44 +401,30 @@ class DevIdModule:
             raise PurgeError from exception
         self._inventory = None
 
-    @property
-    def working_dir(self) -> Path:
-        """Returns the Path instance containing the working directory path.
-
-        Returns:
-            Path: The Path instance containing the working directory path.
-        """
-        return self._working_dir
-
-    @property
-    def inventory_path(self) -> Path:
-        """Returns the Path instance containing the inventory file path.
-
-        Returns:
-            Path: The Path instance containing the inventory file path.
-        """
-        return self._inventory_path
-
-    @property
-    def inventory(self) -> Inventory:
-        """Returns the current inventory as a model copy.
-
-        Returns:
-            Inventory: A model copy of the current inventory.
-
-        Raises:
-            NotInitializedError: If the DevID Module is not yet initialized.
-        """
-        if self._inventory is None:
-            raise NotInitializedError
-        return self._inventory.model_copy()
-
     def _store_inventory(self, inventory: Inventory) -> None:
         try:
             self.inventory_path.write_text(inventory.model_dump_json())
             self._inventory = inventory
         except Exception as exception:
             raise InventoryDataWriteError from exception
+
+    # ---------------------------------------------------- Entropy -----------------------------------------------------
+
+    def add_rng_entropy(self, entropy: bytes) -> None:  # noqa: ARG002
+        """Adds entropy to the RNG.
+
+        Warnings:
+            This is not yet implemented and will raise an DevIdModuleNotImplementedError.
+
+        Args:
+            entropy: Up to 256 random bytes.
+
+        Raises:
+            DevIdModuleNotImplementedError: Will be raised, since this method is not yet implemented.
+        """
+        raise DevIdModuleNotImplementedError(method_name='add_rng_entropy')
+
+    # --------------------------------------------------- Insertions ---------------------------------------------------
 
     def insert_ldevid_key(
             self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None) -> int:
@@ -556,6 +584,8 @@ class DevIdModule:
 
         return certificate_index
 
+    # --------------------------------------------------- Deletions ----------------------------------------------------
+
     def delete_ldevid_key(self, key_index: int) -> None:
         """Deletes the LDevID key corresponding to the provided key index.
 
@@ -663,31 +693,7 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
-    def add_rng_entropy(self, entropy: bytes) -> None:  # noqa: ARG002
-        """Adds entropy to the RNG.
-
-        Warnings:
-            This is not yet implemented and will raise an DevIdModuleNotImplementedError.
-
-        Args:
-            entropy: Up to 256 random bytes.
-
-        Raises:
-            DevIdModuleNotImplementedError: Will be raised, since this method is not yet implemented.
-        """
-        raise DevIdModuleNotImplementedError(method_name='add_rng_entropy')
-
-    def sign(self, key_index: int, data: bytes) -> bytes:
-        """Signs the provided data (bytes) with the key corresponding to the provided key index.
-
-        Args:
-            key_index: Key index corresponding to the key that signs the data.
-            data: The data to be signed.
-
-        Returns:
-            The signature of the provided data, signed by the key corresponding to the provided key index.
-        """
-        # TODO(AlexHx8472): Implement this method
+    # ---------------------------------- Enable / Disable DevID Keys and Certificates ----------------------------------
 
     def enable_devid_key(self, key_index: int) -> None:
         """Enables the DevID key corresponding to the provided key index.
@@ -772,6 +778,8 @@ class DevIdModule:
         inventory.devid_keys[certificate_index].is_enabled = False
 
         self._store_inventory(inventory)
+
+    # -------------------------------------------------- Enumerations --------------------------------------------------
 
     # TODO(AlexHx8472): Subject Public Key Info
     def enumerate_devid_public_keys(self) -> list[tuple[int, bool, str, bool]]:
@@ -865,3 +873,17 @@ class DevIdModule:
             CertificateSerializer(certificate_bytes).as_der()
             for certificate_bytes in devid_certificate.certificate_chain
         ]
+
+    # ---------------------------------------------------- Signing -----------------------------------------------------
+
+    def sign(self, key_index: int, data: bytes) -> bytes:
+        """Signs the provided data (bytes) with the key corresponding to the provided key index.
+
+        Args:
+            key_index: Key index corresponding to the key that signs the data.
+            data: The data to be signed.
+
+        Returns:
+            The signature of the provided data, signed by the key corresponding to the provided key index.
+        """
+        # TODO(AlexHx8472): Implement this method
