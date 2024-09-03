@@ -261,7 +261,7 @@ class DevIdModule:
 
         return new_key_index
 
-    @handle_unexpected_errors(message='Failed to insert the LDevID Certifiacte.')
+    @handle_unexpected_errors(message='Failed to insert the LDevID Certificate.')
     def insert_ldevid_certificate(self, certificate: bytes | str | x509.Certificate | CertificateSerializer) -> int:
         """Inserts the LDevID certificate corresponding to the provided certificate index.
 
