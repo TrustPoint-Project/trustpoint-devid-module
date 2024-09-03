@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import click
 from prettytable import PrettyTable
 
+from trustpoint_devid_module.exceptions import NotInitializedError
 from trustpoint_devid_module.serializer import (
     CertificateCollectionSerializer,
     CertificateSerializer,
@@ -28,7 +29,19 @@ def get_devid_module(working_dir: Path = WORKING_DIR) -> DevIdModule:
     Returns:
         DevIdModule: An instance of the DevIdModule class.
     """
-    return DevIdModule(working_dir)
+    return DevIdModule(working_dir=working_dir, purge=False)
+
+
+def get_devid_module_for_purge(working_dir: Path = WORKING_DIR) -> DevIdModule:
+    """Instantiates the DevIdModule class with the desired working directory and the purge flag set to True.
+
+    Args:
+        working_dir: Path to the desired working directory.
+
+    Returns:
+        DevIdModule: An instance of the DevIdModule class.
+    """
+    return DevIdModule(working_dir=working_dir, purge=True)
 
 
 def get_initialized_devid_module(working_dir: Path = WORKING_DIR) -> None | DevIdModule:
@@ -58,10 +71,12 @@ def cli() -> None:
 def status() -> None:
     """Status information about the DevID Module."""
     devid_module = get_devid_module()
-    if devid_module.inventory:
-        click.echo(f'\nDevID Module is initialized with working directory: {devid_module.working_dir}.\n')
-        return
-    click.echo('\nDevID Module is not yet initialized.\n')
+    try:
+        if devid_module.inventory:
+            click.echo(f'\nDevID Module is initialized with working directory: {devid_module.working_dir}.\n')
+            return
+    except NotInitializedError:
+        click.echo('\nDevID Module is not yet initialized.\n')
 
 
 @cli.command()
@@ -79,13 +94,8 @@ def initialize() -> None:
 @cli.command()
 def purge() -> None:
     """Purges all stored data and secrets."""
-    devid_module = get_devid_module()
-    if devid_module.inventory is None:
-        click.echo('\nDevID Module is not yet initialized, nothing to purge.\n')
-        return
-
     if click.confirm('\nAre you sure to purge the DevID Module? This will irreversibly delete all data and secrets!\n'):
-        devid_module.purge()
+        get_devid_module_for_purge()
         click.echo('\nDevID Module successfully purged.\n')
 
 

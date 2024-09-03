@@ -68,17 +68,24 @@ class DevIdModule:
     _inventory: None | Inventory = None
 
     @handle_unexpected_errors(message='Failed to instantiate the DevID Module.')
-    def __init__(self, working_dir: str | Path) -> None:
+    def __init__(self, working_dir: str | Path, purge: bool = False) -> None:   # noqa: FBT001, FBT002
         """Instantiates a DevIdModule object with the desired working directory.
 
         Args:
             working_dir: The desired working directory.
+            purge:
+                If purge is True, the purge method is called without trying to load the inventory first.
+                This prevents the DevIdModuleCorruptedError to be raised when trying to purge the working directory.
 
         Raises:
             DevIdModuleCorruptedError: If the DevID Module failed to load and verify the data from storage.
         """
         self._working_dir = Path(working_dir)
         self._inventory_path = self.working_dir / 'inventory.json'
+
+        if purge:
+            self.purge()
+            return
 
         if self.inventory_path.exists() and self.inventory_path.is_file():
             try:
