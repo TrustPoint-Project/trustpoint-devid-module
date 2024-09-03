@@ -32,6 +32,7 @@ from trustpoint_devid_module.exceptions import (
     NothingToPurgeError,
     NotInitializedError,
     PurgeError,
+    SignatureSuiteOfCertificateDoesNotMatchTheKeyError,
     UnexpectedDevIdModuleError,
     UnsupportedKeyTypeError,
     WorkingDirectoryAlreadyExistsError,
@@ -41,6 +42,7 @@ from trustpoint_devid_module.serializer import (
     CertificateCollectionSerializer,
     CertificateSerializer,
     PrivateKeySerializer,
+    PublicKeySerializer,
 )
 from trustpoint_devid_module.util import (
     PrivateKey,
@@ -217,7 +219,7 @@ class DevIdModule:
             raise CorruptedKeyDataError from exception
 
         try:
-            signature_suite = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
+            _ = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
         except Exception as exception:
             raise UnsupportedKeyTypeError from exception
 
@@ -236,7 +238,6 @@ class DevIdModule:
             certificate_indices=[],
             is_enabled=False,
             is_idevid_key=False,
-            subject_public_key_info=signature_suite.value.encode(),
             private_key=private_key_bytes,
             public_key=public_key_bytes,
         )
@@ -261,6 +262,8 @@ class DevIdModule:
 
         Raises:
             CorruptedCertificateDataError: If the DevID Module failed to load the provided certificate data.
+            SignatureSuiteNotSupported: If the signature suite is not supported.
+            SignatureSuiteOfCertificateDoesNotMatchTheKey:
             UnsupportedKeyTypeError: If the provided key type is not supported by the DevID Module.
             NotInitializedError: If the DevID Module is not yet initialized.
             DevIdCertificateExistsError: If the DevID Certificate already exists.
@@ -273,10 +276,17 @@ class DevIdModule:
             raise CorruptedCertificateDataError from exception
         public_key = certificate.public_key_serializer
 
-        try:
-            signature_suite = SignatureSuite.get_signature_suite_from_certificate(certificate)
-        except Exception as exception:
-            raise UnsupportedKeyTypeError from exception
+        certificate_signature_suite = SignatureSuite.get_signature_suite_from_certificate(certificate)
+        public_key_signature_suite = SignatureSuite.get_signature_suite_from_public_key_type(public_key)
+
+        if certificate_signature_suite.signature_algorithm_oid != public_key_signature_suite.signature_algorithm_oid:
+            raise SignatureSuiteOfCertificateDoesNotMatchTheKeyError
+
+        if certificate_signature_suite.padding != public_key_signature_suite.padding:
+            raise SignatureSuiteOfCertificateDoesNotMatchTheKeyError
+
+        if certificate_signature_suite.public_key_algorithm_oid != public_key_signature_suite.public_key_algorithm_oid:
+            raise SignatureSuiteOfCertificateDoesNotMatchTheKeyError
 
         certificate_bytes = certificate.as_pem()
         certificate_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(certificate_bytes)
@@ -297,7 +307,6 @@ class DevIdModule:
             key_index=key_index,
             is_enabled=False,
             is_idevid=False,
-            subject_public_key_info=signature_suite.value.encode(),
             certificate=certificate.as_pem(),
             certificate_chain=[],
         )
@@ -560,8 +569,7 @@ class DevIdModule:
 
     # -------------------------------------------------- Enumerations --------------------------------------------------
 
-    # TODO(AlexHx8472): Subject Public Key Info
-    def enumerate_devid_public_keys(self) -> list[tuple[int, bool, str, bool]]:
+    def enumerate_devid_public_keys(self) -> list[tuple[int, bool, bytes, bool]]:
         """Enumerates all DevID public keys.
 
         Returns:
@@ -578,7 +586,7 @@ class DevIdModule:
             (
                 devid_key_index,
                 devid_key.is_enabled,
-                devid_key.subject_public_key_info.decode(),
+                PublicKeySerializer(devid_key.public_key).as_der(),
                 devid_key.is_idevid_key,
             )
             for devid_key_index, devid_key in self.inventory.devid_keys.items()

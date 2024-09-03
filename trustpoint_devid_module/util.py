@@ -11,6 +11,8 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric import padding as crypto_padding
 from cryptography.x509.oid import PublicKeyAlgorithmOID, SignatureAlgorithmOID
 
+from trustpoint_devid_module.exceptions import SignatureSuiteNotSupportedError
+
 if TYPE_CHECKING:
     from cryptography.hazmat.primitives.hashes import HashAlgorithm
 
@@ -190,8 +192,14 @@ class SignatureSuite(enum.Enum):
 
         Returns:
             SignatureSuite: The matching SignatureSuite enum corresponding to the provided certificate.
+
+        Raises:
+            SignatureSuiteNotSupported: If the signature suite is not supported.
         """
-        return cls.get_signature_suite_from_public_key_type(certificate.public_key_serializer)
+        signature_suite = cls.get_signature_suite_from_public_key_type(certificate.public_key_serializer)
+        if certificate.as_crypto().signature_algorithm_oid != signature_suite.signature_algorithm_oid:
+            raise SignatureSuiteNotSupportedError
+        return signature_suite
 
 
 def get_sha256_fingerprint_as_upper_hex_str(data: bytes) -> str:

@@ -309,3 +309,19 @@ class EmptyDataError(DevIdModuleError):
     def __init__(self) -> None:
         """Initializes the EmptyDataError."""
         super().__init__('The provided data object is an empty bytes object.')
+
+
+class SignatureSuiteNotSupportedError(DevIdModuleError):
+    """Raised if the provided certificate uses a signature suite that is not supported."""
+
+    def __init__(self) -> None:
+        """Initializes the SignatureSuiteNotSupported."""
+        super().__init__('The provided certificate uses a signature suite that is not supported.')
+
+
+class SignatureSuiteOfCertificateDoesNotMatchTheKeyError(DevIdModuleError):
+    """Raised if the provided certificate uses a different signature suite than the stored DevID key."""
+
+    def __init__(self) -> None:
+        """Initializes the SignatureSuiteOfCertificateDoesNotMatchTheKey."""
+        super().__init__('The provided certificate uses a different signature suite than the stored DevID key.')
