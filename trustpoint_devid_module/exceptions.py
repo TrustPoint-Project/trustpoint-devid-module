@@ -283,13 +283,17 @@ class UnsupportedKeyTypeError(DevIdModuleError):
 class UnexpectedDevIdModuleError(DevIdModuleError):
     """Raised if an unexpected error occurred, e.g. not supported key type found in the inventory."""
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, exception: None | Exception = None) -> None:
         """Initializes the UnexpectedDevIdModuleError.
 
         Args:
             message: Description of the error that occurred.
+            exception: The exception that caused this exception.
         """
-        super().__init__(f'An unexpected error occurred. {message}')
+        if exception is None:
+            super().__init__(f'\n\n\tAn unexpected error occurred.\n\t{message}\n')
+        else:
+            super().__init__(f'\n\n\tAn unexpected error occurred.\n\t{message}\n\tException raised: {exception}\n')
 
 class DataTypeError(DevIdModuleError):
     """Raised if the provided data is not of type bytes."""

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pydantic
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
+from trustpoint_devid_module.decorator import handle_unexpected_errors
 from trustpoint_devid_module.exceptions import (
     AlreadyInitializedError,
     CorruptedCertificateChainDataError,
@@ -66,6 +67,7 @@ class DevIdModule:
     _inventory_path: Path
     _inventory: None | Inventory = None
 
+    @handle_unexpected_errors(message='Failed to instantiate the DevID Module.')
     def __init__(self, working_dir: str | Path) -> None:
         """Instantiates a DevIdModule object with the desired working directory.
 
@@ -89,6 +91,7 @@ class DevIdModule:
     # --------------------------------------------- DevIdModule Properties ---------------------------------------------
 
     @property
+    @handle_unexpected_errors(message='Failed to get the working directory.')
     def working_dir(self) -> Path:
         """Returns the Path instance containing the working directory path.
 
@@ -98,6 +101,7 @@ class DevIdModule:
         return self._working_dir
 
     @property
+    @handle_unexpected_errors(message='Failed to get the inventory path.')
     def inventory_path(self) -> Path:
         """Returns the Path instance containing the inventory file path.
 
@@ -107,6 +111,7 @@ class DevIdModule:
         return self._inventory_path
 
     @property
+    @handle_unexpected_errors(message='Failed to get the inventory as a model copy.')
     def inventory(self) -> Inventory:
         """Returns the current inventory as a model copy.
 
@@ -122,6 +127,7 @@ class DevIdModule:
 
     # -------------------------------------- Initialization, Purging and Storing ---------------------------------------
 
+    @handle_unexpected_errors(message='Failed to initialize the DevID Module.')
     def initialize(self) -> None:
         """Initializes the DevID Module.
 
@@ -155,6 +161,7 @@ class DevIdModule:
             raise InventoryDataWriteError from exception
         self._inventory = inventory
 
+    @handle_unexpected_errors(message='Failed to purge the working directory.')
     def purge(self) -> None:
         """Purges (deletes) all stored data corresponding to the DevID Module.
 
@@ -170,6 +177,7 @@ class DevIdModule:
             raise PurgeError from exception
         self._inventory = None
 
+    @handle_unexpected_errors(message='Failed to store the inventory.')
     def _store_inventory(self, inventory: Inventory) -> None:
         try:
             self.inventory_path.write_text(inventory.model_dump_json())
@@ -179,6 +187,7 @@ class DevIdModule:
 
     # ---------------------------------------------------- Entropy -----------------------------------------------------
 
+    @handle_unexpected_errors(message='Failed to add entropy to the RNG.')
     def add_rng_entropy(self, entropy: bytes) -> None:  # noqa: ARG002
         """Adds entropy to the RNG.
 
@@ -195,6 +204,7 @@ class DevIdModule:
 
     # --------------------------------------------------- Insertions ---------------------------------------------------
 
+    @handle_unexpected_errors(message='Failed to insert the LDevID Key.')
     def insert_ldevid_key(
             self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None) -> int:
         """Inserts the LDevID private key corresponding to the provided key index.
@@ -251,6 +261,7 @@ class DevIdModule:
 
         return new_key_index
 
+    @handle_unexpected_errors(message='Failed to insert the LDevID Certifiacte.')
     def insert_ldevid_certificate(self, certificate: bytes | str | x509.Certificate | CertificateSerializer) -> int:
         """Inserts the LDevID certificate corresponding to the provided certificate index.
 
@@ -320,6 +331,7 @@ class DevIdModule:
 
         return new_certificate_index
 
+    @handle_unexpected_errors(message='Failed to insert the LDevID Certificate Chain.')
     def insert_ldevid_certificate_chain(
         self,
         certificate_index: int,
@@ -372,6 +384,7 @@ class DevIdModule:
 
     # --------------------------------------------------- Deletions ----------------------------------------------------
 
+    @handle_unexpected_errors(message='Failed to delete the LDevID Key.')
     def delete_ldevid_key(self, key_index: int) -> None:
         """Deletes the LDevID key corresponding to the provided key index.
 
@@ -413,6 +426,7 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to delete the LDevID Certificate.')
     def delete_ldevid_certificate(self, certificate_index: int) -> None:
         """Deletes the LDevID certificate corresponding to the provided certificate index.
 
@@ -446,6 +460,7 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to delete the LDevID Certificate Chain.')
     def delete_ldevid_certificate_chain(self, certificate_index: int) -> None:
         """Deletes the LDevID certificate chain corresponding to the certificate with the provided certificate index.
 
@@ -483,6 +498,7 @@ class DevIdModule:
 
     # ---------------------------------- Enable / Disable DevID Keys and Certificates ----------------------------------
 
+    @handle_unexpected_errors(message='Failed to enable the DevID Key.')
     def enable_devid_key(self, key_index: int) -> None:
         """Enables the DevID key corresponding to the provided key index.
 
@@ -504,6 +520,7 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to disable the DevID Key.')
     def disable_devid_key(self, key_index: int) -> None:
         """Disables the DevID key corresponding to the provided key index.
 
@@ -525,6 +542,7 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to enable the DevID Certificate.')
     def enable_devid_certificate(self, certificate_index: int) -> None:
         """Enables the DevID certificate corresponding to the provided certificate index.
 
@@ -546,6 +564,7 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to disable the DevID Certificate.')
     def disable_devid_certificate(self, certificate_index: int) -> None:
         """Disables the DevID certificate corresponding to the provided certificate index.
 
@@ -569,6 +588,7 @@ class DevIdModule:
 
     # -------------------------------------------------- Enumerations --------------------------------------------------
 
+    @handle_unexpected_errors(message='Failed to enumerate the DevID Public Keys.')
     def enumerate_devid_public_keys(self) -> list[tuple[int, bool, bytes, bool]]:
         """Enumerates all DevID public keys.
 
@@ -592,6 +612,7 @@ class DevIdModule:
             for devid_key_index, devid_key in self.inventory.devid_keys.items()
         ]
 
+    @handle_unexpected_errors(message='Failed to enumerate the DevID Certificates.')
     def enumerate_devid_certificates(self) -> list[tuple[int, int, bool, bool, bytes]]:
         """Enumerates all DevID certificates.
 
@@ -624,6 +645,7 @@ class DevIdModule:
 
         return enumerated_certificates
 
+    @handle_unexpected_errors(message='Failed to enumerate the corresponding DevID Certificate Chain.')
     def enumerate_devid_certificate_chain(self, certificate_index: int) -> list[bytes]:
         """Enumerates the DevID certificate chain corresponding to the certificate with the given certificate index.
 
@@ -663,6 +685,7 @@ class DevIdModule:
 
     # ---------------------------------------------------- Signing -----------------------------------------------------
 
+    @handle_unexpected_errors(message='Failed to sign the provided data with the requested DevID Key.')
     def sign(self, key_index: int, data: bytes) -> bytes:
         """Signs the provided data (bytes) with the key corresponding to the provided key index.
 
@@ -695,7 +718,6 @@ class DevIdModule:
 
         if devid_key.is_enabled is False:
             raise DevIdKeyIsDisabledError(key_index=key_index)
-
 
         try:
             private_key = PrivateKeySerializer(devid_key.private_key)
