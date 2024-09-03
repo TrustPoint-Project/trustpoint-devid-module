@@ -287,6 +287,14 @@ class IDevIdCertificateChainDeletionError(DevIdModuleError):
             'is an IDevID Certificate and thus its certificate chain cannot be deleted.')
 
 
+class UnsupportedKeyTypeError(DevIdModuleError):
+    """Raised if the provided key type is not supported by the DevID Module."""
+
+    def __init__(self) -> None:
+        """Initializes the UnsupportedKeyTypeError."""
+        super().__init__('The provided key type is not supported by the DevID Module.')
+
+
 # ---------------------------------------------------- DevID Module ----------------------------------------------------
 
 
@@ -439,6 +447,7 @@ class DevIdModule:
 
         Raises:
             CorruptedKeyDataError: If the DevID Module failed to load the provided key data.
+            UnsupportedKeyTypeError: If the provided key type is not supported by the DevID Module.
             NotInitializedError: If the DevID Module is not yet initialized.
             DevIdKeyExistsError: If the provided key is already stored as DevID Key.
             InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
@@ -448,10 +457,12 @@ class DevIdModule:
         except Exception as exception:
             raise CorruptedKeyDataError from exception
 
-        signature_suite = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
+        try:
+            signature_suite = SignatureSuite.get_signature_suite_from_private_key_type(private_key)
+        except Exception as exception:
+            raise UnsupportedKeyTypeError from exception
 
         private_key_bytes = private_key.as_pkcs8_pem()
-
         public_key_bytes = private_key.public_key_serializer.as_pem()
         public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(public_key_bytes)
 
@@ -491,6 +502,7 @@ class DevIdModule:
 
         Raises:
             CorruptedCertificateDataError: If the DevID Module failed to load the provided certificate data.
+            UnsupportedKeyTypeError: If the provided key type is not supported by the DevID Module.
             NotInitializedError: If the DevID Module is not yet initialized.
             DevIdCertificateExistsError: If the DevID Certificate already exists.
             DevIdKeyNotFoundError: If no DevID Key was found that matches the provided certificate.
@@ -502,7 +514,10 @@ class DevIdModule:
             raise CorruptedCertificateDataError from exception
         public_key = certificate.public_key_serializer
 
-        signature_suite = SignatureSuite.get_signature_suite_from_certificate(certificate)
+        try:
+            signature_suite = SignatureSuite.get_signature_suite_from_certificate(certificate)
+        except Exception as exception:
+            raise UnsupportedKeyTypeError from exception
 
         certificate_bytes = certificate.as_pem()
         certificate_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(certificate_bytes)
@@ -513,9 +528,7 @@ class DevIdModule:
                 certificate_index=inventory.certificate_fingerprint_mapping[certificate_sha256_fingerprint])
 
         public_key_sha256_fingerprint = get_sha256_fingerprint_as_upper_hex_str(public_key.as_pem())
-
         key_index = inventory.public_key_fingerprint_mapping.get(public_key_sha256_fingerprint)
-
         if key_index is None:
             raise DevIdKeyNotFoundError
 
@@ -561,6 +574,8 @@ class DevIdModule:
             CorruptedCertificateChainDataError: If the DevID Module failed to load the provided certificate chain data.
             NotInitializedError: If the DevID Module is not yet initialized.
             DevIdCertificateNotFoundError: If no DevID Certificate for the provided certificate index was found.
+            DevIdCertificateIsDisabledError:
+                If the DevID Certificate associated with the certificate chain is disabled.
             DevIdCertificateChainExistsError: If the associated DevID Certificate already contains a certificate chain.
             InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
@@ -570,15 +585,18 @@ class DevIdModule:
             raise CorruptedCertificateChainDataError from exception
 
         inventory = self.inventory
-        certificate = inventory.devid_certificates.get(certificate_index)
+        devid_certificate = inventory.devid_certificates.get(certificate_index)
 
-        if certificate is None:
+        if devid_certificate is None:
             raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        if certificate.certificate_chain:
+        if devid_certificate.is_enabled is False:
+            raise DevIdCertificateIsDisabledError(certificate_index=certificate_index)
+
+        if devid_certificate.certificate_chain:
             raise DevIdCertificateChainExistsError(certificate_index=certificate_index)
 
-        certificate.certificate_chain.extend(certificate_chain.as_pem_list())
+        devid_certificate.certificate_chain.extend(certificate_chain.as_pem_list())
 
         self._store_inventory(inventory)
 
@@ -601,7 +619,6 @@ class DevIdModule:
             InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
         inventory = self.inventory
-
         devid_key = inventory.devid_keys.get(key_index)
 
         if devid_key is None:
@@ -644,7 +661,6 @@ class DevIdModule:
             InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
         inventory = self.inventory
-
         devid_certificate = inventory.devid_certificates.get(certificate_index)
 
         if devid_certificate is None:
@@ -673,11 +689,12 @@ class DevIdModule:
             DevIdCertificateNotFoundError: If the DevID Certificate was found for the provided certificate index.
             IDevIdCertificateChainDeletionError:
                 If the DevID Certificate is an IDevID Certificate and thus its certificate chain cannot be deleted.
+            DevIdCertificateIsDisabledError:
+                If the DevID Certificate associated with the certificate chain is disabled.
             DevIdCertificateChainNotFoundError: If the DevID Certificate has no associated certificate chain.
             InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
         inventory = self.inventory
-
         devid_certificate = inventory.devid_certificates.get(certificate_index)
 
         if devid_certificate is None:
@@ -685,6 +702,9 @@ class DevIdModule:
 
         if devid_certificate.is_idevid:
             IDevIdCertificateChainDeletionError(certificate_index=certificate_index)
+
+        if devid_certificate.is_enabled is False:
+            raise DevIdCertificateIsDisabledError(certificate_index=certificate_index)
 
         if not devid_certificate.certificate_chain:
             raise DevIdCertificateChainNotFoundError(certificate_index=certificate_index)
