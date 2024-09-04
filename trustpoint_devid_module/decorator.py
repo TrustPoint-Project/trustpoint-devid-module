@@ -49,3 +49,5 @@ def handle_unexpected_errors(message: str) -> callable:
         return unexpected_error_handler
 
     return decorator_function
+
+

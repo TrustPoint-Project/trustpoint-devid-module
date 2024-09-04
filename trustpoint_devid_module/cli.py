@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import click
 from prettytable import PrettyTable
@@ -15,9 +15,6 @@ from trustpoint_devid_module.serializer import (
 )
 from trustpoint_devid_module.service_interface import DevIdModule
 from trustpoint_devid_module.util import WORKING_DIR
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def get_devid_module(working_dir: Path = WORKING_DIR) -> DevIdModule:
@@ -199,6 +196,7 @@ def insert_ldevid_key(password: str, file_path: Path) -> None:
         password: The password, if the key file is encrypted.
         file_path: File path to the key file.
     """
+    file_path = Path(file_path)
     if password is not None:
         password = password.encode()
     devid_module = get_initialized_devid_module()
@@ -227,6 +225,7 @@ def insert_ldevid_certificate(file_path: Path) -> None:
     Args:
         file_path: File path to the certificate file.
     """
+    file_path = Path(file_path)
     devid_module = get_initialized_devid_module()
     if devid_module is None:
         return
@@ -261,6 +260,7 @@ def insert_ldevid_certificate_chain(certificate_index: int, file_path: Path) -> 
         certificate_index: The certificate index of the certificate matching the certificate chain.
         file_path: The file path to the certificate chain file.
     """
+    file_path = Path(file_path)
     devid_module = get_initialized_devid_module()
     if devid_module is None:
         return
