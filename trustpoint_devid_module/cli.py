@@ -188,7 +188,7 @@ def insert() -> None:
 
 @insert.command(name='ldevid-key')
 @click.option('--password', '-p', default=None, required=False, help='Password, if the key file is encrypted.')
-@click.option('--file-path', '-f', required=True, type=click.Path(exists=True), help='Path to the private key file.')
+@click.argument('file_path', required=True, type=click.Path(exists=True))
 def insert_ldevid_key(password: str, file_path: Path) -> None:
     """Inserts an LDevID Private Key.
 
@@ -218,7 +218,7 @@ def insert_ldevid_key(password: str, file_path: Path) -> None:
 
 
 @insert.command(name='ldevid-certificate')
-@click.option('--file-path', '-f', required=True, type=click.Path(exists=True), help='Path to the private key file.')
+@click.argument('file_path', required=True, type=click.Path(exists=True))
 def insert_ldevid_certificate(file_path: Path) -> None:
     """Inserts an LDevID Certificate.
 
@@ -252,7 +252,7 @@ def insert_ldevid_certificate(file_path: Path) -> None:
     type=int,
     help='Certificate index corresponding to the certificate chain.',
 )
-@click.option('--file-path', '-f', required=True, type=click.Path(exists=True), help='Path to the private key file.')
+@click.argument('file_path', required=True, type=click.Path(exists=True))
 def insert_ldevid_certificate_chain(certificate_index: int, file_path: Path) -> None:
     """Inserts an LDevID Private Key.
 

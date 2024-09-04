@@ -567,7 +567,7 @@ class DevIdModule:
         if devid_certificate is None:
             raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        inventory.devid_keys[certificate_index].is_enabled = True
+        inventory.devid_certificates[certificate_index].is_enabled = True
 
         self._store_inventory(inventory)
 
@@ -589,7 +589,7 @@ class DevIdModule:
         if devid_certificate is None:
             raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        inventory.devid_keys[certificate_index].is_enabled = False
+        inventory.devid_certificates[certificate_index].is_enabled = False
 
         self._store_inventory(inventory)
 

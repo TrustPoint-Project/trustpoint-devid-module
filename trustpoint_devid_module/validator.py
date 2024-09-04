@@ -8,7 +8,7 @@ from trustpoint_devid_module.serializer import CertificateSerializer, Certificat
 from trustpoint_devid_module.util import SignatureSuite
 
 
-# TODO(AlexHx8472)
+# TODO(AlexHx8472): Validation of both DevID Certificates and DevID Certificate Chains.
 
 class DevIdValidator(abc.ABC):
 
