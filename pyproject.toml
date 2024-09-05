@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'trustpoint-devid-module'
-version = '0.0.3'
+version = '0.0.4'
 description = ''
 authors = ['TrustPoint-Project']
 readme = 'README.md'
