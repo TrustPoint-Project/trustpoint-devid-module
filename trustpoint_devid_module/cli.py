@@ -11,7 +11,7 @@ from trustpoint_devid_module.exceptions import NotInitializedError
 from trustpoint_devid_module.serializer import (
     CertificateCollectionSerializer,
     CertificateSerializer,
-    PrivateKeySerializer,
+    PrivateKeySerializer, PublicKeySerializer,
 )
 from trustpoint_devid_module.service_interface import DevIdModule
 from trustpoint_devid_module.util import WORKING_DIR
@@ -107,7 +107,13 @@ def enumerate_devid_public_keys() -> None:
     devid_module = get_devid_module()
     table = PrettyTable()
     table.field_names = ['Key Index', 'Is Enabled', 'Subject Public Key Info', 'Is IDevID']
-    table.add_rows(devid_module.enumerate_devid_public_keys())
+    table.add_rows([
+        (
+            entry[0],
+            entry[1],
+            PublicKeySerializer(entry[2]).as_pem().decode(),
+            entry[3]
+        ) for entry in devid_module.enumerate_devid_public_keys()])
     click.echo(f'\n{table}\n')
 
 
@@ -169,7 +175,7 @@ def enumerate_devid_certificate_chains(certificate_index: int) -> None:
         return
 
     table = PrettyTable()
-    table.field_names = ['# Certificate In Chain', 'Certificate']
+    table.field_names = ['# Certificate', 'Certificate']
 
     devid_certificate_chain = [
         CertificateSerializer(certificate).as_pem().decode() for certificate in devid_certificate_.certificate_chain

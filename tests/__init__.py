@@ -31,7 +31,7 @@ def generate_key(signature_suite: SignatureSuite) -> PrivateKey:
         signature_suite: The signature suite determining the key type.
 
     Returns:
-        PrivateKey: The generated private key mathicn the signature suite.
+        PrivateKey: The generated private key matching the signature suite.
     """
     if signature_suite == SignatureSuite.RSA2048_SHA256_PKCS1_v1_5:
         return rsa.generate_private_key(public_exponent=RSA_PUBLIC_EXPONENT, key_size=2048)
@@ -116,30 +116,14 @@ def initialized_tmp_devid_module(tmp_path: Path) -> DevIdModule:
     return dev_id_module
 
 
-@pytest.fixture(scope='class')
-def private_key_fixture(request: SubRequest) -> PrivateKey:
+@pytest.fixture(scope='session')
+def get_private_key_generator() -> callable:
     """Generates a private key for the given signature suite.
 
-    Args:
-        request: The request containing a SignatureSuite enum instance to be used to create the private key.
-
     Returns:
-        PrivateKey: The generated public key.
+        callable: Function that takes a SignatureSuite enum instance and returns a corresponding private key.
     """
-    return generate_key(request.param)
-
-
-@pytest.fixture(scope='class')
-def public_key_fixture(request: SubRequest) -> PublicKey:
-    """Generates a public key for the given signature suite.
-
-    Args:
-        request: The request containing a SignatureSuite enum instance to be used to create the public key.
-
-    Returns:
-        PublicKey: The generated public key.
-    """
-    return generate_key(request.param).public_key()
+    return generate_key
 
 
 @pytest.fixture(scope='class')
