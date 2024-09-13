@@ -66,6 +66,7 @@ class DevIdModule:
 
     _inventory_path: Path
     _inventory: None | Inventory = None
+    _is_initialized: bool = False
 
     @handle_unexpected_errors(message='Failed to instantiate the DevID Module.')
     def __init__(self, working_dir: str | Path, purge: bool = False) -> None:   # noqa: FBT001, FBT002
@@ -75,9 +76,9 @@ class DevIdModule:
             working_dir: The desired working directory.
             purge:
                 If purge is True, the purge method is called without trying to load the inventory first.
-                This prevents the DevIdModuleCorruptedError to be raised when trying to purge the working directory.
+                This prevents the DevIdModuleCorruptedError to be raised to be raised if the stored data is corrupted.
 
-        Raises:
+        Raises:Dev
             DevIdModuleCorruptedError: If the DevID Module failed to load and verify the data from storage.
         """
         self._working_dir = Path(working_dir)
@@ -91,7 +92,6 @@ class DevIdModule:
             try:
                 with self.inventory_path.open('r') as f:
                     self._inventory = Inventory.model_validate_json(f.read())
-                self._is_initialized = True
             except pydantic.ValidationError as exception:
                 raise DevIdModuleCorruptedError from exception
 

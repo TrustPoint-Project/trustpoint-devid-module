@@ -55,7 +55,7 @@ class CorruptedCertificateChainDataError(DevIdModuleError):
 
 
 class NotInitializedError(DevIdModuleError):
-    """Raised if trying to use the DevID Module"""
+    """Raised if trying to use the DevID Module if it is not initialized."""
 
     def __init__(self) -> None:
         """Initializes the NotInitializedError."""
