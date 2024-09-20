@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import enum
 from hashlib import sha256
-from pathlib import Path
 from typing import TYPE_CHECKING, Union
+import sys
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
@@ -12,16 +12,22 @@ from cryptography.hazmat.primitives.asymmetric import padding as crypto_padding
 from cryptography.x509.oid import PublicKeyAlgorithmOID, SignatureAlgorithmOID
 
 from trustpoint_devid_module.exceptions import SignatureSuiteNotSupportedError
+from platformdirs import PlatformDirs
 
 if TYPE_CHECKING:
     from cryptography.hazmat.primitives.hashes import HashAlgorithm
 
     from trustpoint_devid_module.serializer import CertificateSerializer, PrivateKeySerializer, PublicKeySerializer
 
+
 PublicKey = Union[rsa.RSAPublicKey, ec.EllipticCurvePublicKey]
 PrivateKey = Union[rsa.RSAPrivateKey, ec.EllipticCurvePrivateKey]
 
-WORKING_DIR = Path().home() / '.local' / 'trustpoint' / 'devid-module'
+
+sys_prefix = sys.prefix.replace('/', '-').replace('\\', '-')[1:]
+dirs = PlatformDirs(appname='trustpoint_devid_module', appauthor='trustpoint', version=sys_prefix)
+WORKING_DIR = dirs.user_data_dir
+
 
 RSA_2048_KEY_SIZE = 2048
 RSA_3072_KEY_SIZE = 3072
@@ -30,7 +36,6 @@ SECP256R1_KEY_SIZE = 256
 SECP384R1_KEY_SIZE = 384
 
 
-# TODO(AlexHx8472): Rework to use proper Subject Public Key Info Bytes
 class SignatureSuite(enum.Enum):
     """Signature Suites as defined in IEEE 802.1 AR.
 
