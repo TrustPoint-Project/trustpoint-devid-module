@@ -11,9 +11,9 @@ click = '^8.1.7'
 prettytable = '^3.11.0'
 pyasn1 = "^0.6.1"
 pyasn1-modules = "^0.4.1"
-cryptography = "^43.0.1"
 pydantic = "^2.9.2"
 platformdirs = "^4.3.6"
+cryptography = "^43.0.3"
 
 
 [tool.poetry.group.dev.dependencies]
