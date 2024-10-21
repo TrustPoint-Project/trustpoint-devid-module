@@ -1,7 +1,6 @@
 """The Trustpoint DevID Module Service Interface API."""
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,7 +9,6 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from trustpoint_devid_module.decorator import handle_unexpected_errors
 from trustpoint_devid_module.exceptions import (
-    AlreadyInitializedError,
     CorruptedCertificateChainDataError,
     CorruptedCertificateDataError,
     CorruptedKeyDataError,
@@ -30,13 +28,9 @@ from trustpoint_devid_module.exceptions import (
     IDevIdCertificateDeletionError,
     IDevIdKeyDeletionError,
     InventoryDataWriteError,
-    NothingToPurgeError,
-    NotInitializedError,
-    PurgeError,
     SignatureSuiteOfCertificateDoesNotMatchTheKeyError,
     UnexpectedDevIdModuleError,
     UnsupportedKeyTypeError,
-    WorkingDirectoryAlreadyExistsError,
 )
 from trustpoint_devid_module.schema import DevIdCertificate, DevIdKey, Inventory
 from trustpoint_devid_module.serializer import (
@@ -45,11 +39,8 @@ from trustpoint_devid_module.serializer import (
     PrivateKeySerializer,
     PublicKeySerializer,
 )
-from trustpoint_devid_module.util import (
-    PrivateKey,
-    SignatureSuite,
-    get_sha256_fingerprint_as_upper_hex_str,
-)
+from . import PrivateKey, SignatureSuite, get_sha256_fingerprint_as_upper_hex_str
+from . import INVENTORY_FILE_PATH, initialize_working_dir_and_inventory
 
 if TYPE_CHECKING:
     from cryptography import x509
@@ -62,60 +53,42 @@ if TYPE_CHECKING:
 
 class DevIdModule:
     """The Trustpoint DevID Module class."""
-    _working_dir: Path
 
-    _inventory_path: Path
+    _inventory_file_path: Path
     _inventory: None | Inventory = None
-    _is_initialized: bool = False
 
     @handle_unexpected_errors(message='Failed to instantiate the DevID Module.')
-    def __init__(self, working_dir: str | Path, purge: bool = False) -> None:   # noqa: FBT001, FBT002
+    def __init__(self, inventory_file_path: Path = INVENTORY_FILE_PATH) -> None:   # noqa: FBT001, FBT002
         """Instantiates a DevIdModule object with the desired working directory.
 
         Args:
-            working_dir: The desired working directory.
-            purge:
-                If purge is True, the purge method is called without trying to load the inventory first.
-                This prevents the DevIdModuleCorruptedError to be raised to be raised if the stored data is corrupted.
+            inventory_file_path: Full file path to the inventory.json file.
 
         Raises:Dev
             DevIdModuleCorruptedError: If the DevID Module failed to load and verify the data from storage.
         """
-        self._working_dir = Path(working_dir)
-        self._inventory_path = self.working_dir / 'inventory.json'
+        self._inventory_file_path = inventory_file_path
 
-        if purge:
-            self.purge()
-            return
+        if not self.inventory_file_path.exists():
+            initialize_working_dir_and_inventory()
 
-        if self.inventory_path.exists() and self.inventory_path.is_file():
-            try:
-                with self.inventory_path.open('r') as f:
-                    self._inventory = Inventory.model_validate_json(f.read())
-            except pydantic.ValidationError as exception:
-                raise DevIdModuleCorruptedError from exception
+        try:
+            with self.inventory_file_path.open('r') as f:
+                self._inventory = Inventory.model_validate_json(f.read())
+        except pydantic.ValidationError as exception:
+            raise DevIdModuleCorruptedError from exception
 
     # --------------------------------------------- DevIdModule Properties ---------------------------------------------
 
     @property
-    @handle_unexpected_errors(message='Failed to get the working directory.')
-    def working_dir(self) -> Path:
-        """Returns the Path instance containing the working directory path.
-
-        Returns:
-            Path: The Path instance containing the working directory path.
-        """
-        return self._working_dir
-
-    @property
     @handle_unexpected_errors(message='Failed to get the inventory path.')
-    def inventory_path(self) -> Path:
+    def inventory_file_path(self) -> Path:
         """Returns the Path instance containing the inventory file path.
 
         Returns:
             Path: The Path instance containing the inventory file path.
         """
-        return self._inventory_path
+        return self._inventory_file_path
 
     @property
     @handle_unexpected_errors(message='Failed to get the inventory as a model copy.')
@@ -128,66 +101,14 @@ class DevIdModule:
         Raises:
             NotInitializedError: If the DevID Module is not yet initialized.
         """
-        if self._inventory is None:
-            raise NotInitializedError
         return self._inventory.model_copy()
 
-    # -------------------------------------- Initialization, Purging and Storing ---------------------------------------
-
-    @handle_unexpected_errors(message='Failed to initialize the DevID Module.')
-    def initialize(self) -> None:
-        """Initializes the DevID Module.
-
-        Creates the working directory and the json inventory file.
-
-        Raises:
-            AlreadyInitializedError: If the DevID Module is already initialized.
-            WorkingDirectoryAlreadyExists: If the working directory already exists.
-            InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
-        """
-        if self._inventory is not None:
-            raise AlreadyInitializedError
-
-        try:
-            Path.mkdir(self.working_dir, parents=True, exist_ok=False)
-        except FileExistsError as exception:
-            raise WorkingDirectoryAlreadyExistsError from exception
-
-        inventory = Inventory(
-            next_key_index=0,
-            next_certificate_index=0,
-            devid_keys={},
-            devid_certificates={},
-            public_key_fingerprint_mapping={},
-            certificate_fingerprint_mapping={},
-        )
-
-        try:
-            self.inventory_path.write_text(inventory.model_dump_json())
-        except Exception as exception:
-            raise InventoryDataWriteError from exception
-        self._inventory = inventory
-
-    @handle_unexpected_errors(message='Failed to purge the working directory.')
-    def purge(self) -> None:
-        """Purges (deletes) all stored data corresponding to the DevID Module.
-
-        Raises:
-            NothingToPurgeError: If the working directory does not exist and thus there is nothing to purge.
-            PurgeError: If the DevID Module failed to purge and delete the working directory.
-        """
-        try:
-            shutil.rmtree(self.working_dir)
-        except FileNotFoundError as exception:
-            raise NothingToPurgeError from exception
-        except Exception as exception:
-            raise PurgeError from exception
-        self._inventory = None
+    # ---------------------------------------------------- Storing -----------------------------------------------------
 
     @handle_unexpected_errors(message='Failed to store the inventory.')
     def _store_inventory(self, inventory: Inventory) -> None:
         try:
-            self.inventory_path.write_text(inventory.model_dump_json())
+            self.inventory_file_path.write_text(inventory.model_dump_json())
             self._inventory = inventory
         except Exception as exception:
             raise InventoryDataWriteError from exception

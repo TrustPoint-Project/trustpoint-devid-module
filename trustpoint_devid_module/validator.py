@@ -5,7 +5,7 @@ from cryptography import x509
 import datetime
 
 from trustpoint_devid_module.serializer import CertificateSerializer, CertificateCollectionSerializer
-from trustpoint_devid_module.util import SignatureSuite
+from . import SignatureSuite
 
 
 # TODO(AlexHx8472): Validation of both DevID Certificates and DevID Certificate Chains.

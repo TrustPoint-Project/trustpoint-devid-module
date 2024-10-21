@@ -54,28 +54,12 @@ class CorruptedCertificateChainDataError(DevIdModuleError):
         super().__init__('Failed to load the provided DevID Certificate Chain. Data seems to be malformed.')
 
 
-class NotInitializedError(DevIdModuleError):
-    """Raised if trying to use the DevID Module if it is not initialized."""
+class InitializationWorkingDirError(DevIdModuleError):
+    """Raised if creation of the working directory fails."""
 
     def __init__(self) -> None:
-        """Initializes the NotInitializedError."""
-        super().__init__('DevID Module is not initialized.')
-
-
-class AlreadyInitializedError(DevIdModuleError):
-    """Raised if trying to initialize the DevID Module when it is already initialized."""
-
-    def __init__(self) -> None:
-        """Initializes the AlreadyInitializedError."""
-        super().__init__('Already initialized.')
-
-
-class WorkingDirectoryAlreadyExistsError(DevIdModuleError):
-    """Raised if the working directory exists while the operation does expect it to not exist."""
-
-    def __init__(self) -> None:
-        """Initializes the WorkingDirectoryAlreadyExistsError."""
-        super().__init__('Working directory already exists.')
+        """Initializes the InitializationWorkingDirError."""
+        super().__init__('Failed to create the working directory.')
 
 
 class InventoryDataWriteError(DevIdModuleError):

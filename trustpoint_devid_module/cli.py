@@ -7,56 +7,13 @@ from pathlib import Path
 import click
 from prettytable import PrettyTable
 
-from trustpoint_devid_module.exceptions import NotInitializedError
+from trustpoint_devid_module import purge_working_dir_and_inventory
 from trustpoint_devid_module.serializer import (
     CertificateCollectionSerializer,
     CertificateSerializer,
     PrivateKeySerializer, PublicKeySerializer,
 )
 from trustpoint_devid_module.service_interface import DevIdModule
-from trustpoint_devid_module.util import WORKING_DIR
-
-
-def get_devid_module(working_dir: Path = WORKING_DIR) -> DevIdModule:
-    """Instantiates the DevIdModule class with the desired working directory.
-
-    Args:
-        working_dir: Path to the desired working directory.
-
-    Returns:
-        DevIdModule: An instance of the DevIdModule class.
-    """
-    return DevIdModule(working_dir=working_dir, purge=False)
-
-
-def get_devid_module_for_purge(working_dir: Path = WORKING_DIR) -> DevIdModule:
-    """Instantiates the DevIdModule class with the desired working directory and the purge flag set to True.
-
-    Args:
-        working_dir: Path to the desired working directory.
-
-    Returns:
-        DevIdModule: An instance of the DevIdModule class.
-    """
-    return DevIdModule(working_dir=working_dir, purge=True)
-
-
-def get_initialized_devid_module(working_dir: Path = WORKING_DIR) -> None | DevIdModule:
-    """Instantiates the DevIdModule class and tries to load the stored DevID Module data.
-
-    Args:
-        working_dir: Path to the desired working directory.
-
-    Returns:
-        None | DevIdModule:
-            An instance of the DevIdModule class if the initialization
-            with existing data was successful, None otherwise.
-    """
-    devid_module = DevIdModule(working_dir)
-    if devid_module.inventory is None:
-        click.echo('DevID Module is not yet initialized.')
-        return None
-    return devid_module
 
 
 @click.group()
@@ -65,31 +22,10 @@ def cli() -> None:
 
 
 @cli.command()
-def status() -> None:
-    """Status information about the DevID Module."""
-    devid_module = get_devid_module()
-    try:
-        if devid_module.inventory:
-            click.echo(f'\nDevID Module is initialized with working directory: {devid_module.working_dir}.\n')
-            return
-    except NotInitializedError:
-        click.echo('\nDevID Module is not yet initialized.\n')
-
-
-@cli.command()
-def initialize() -> None:
-    """Initializes the DevID Module."""
-    devid_module = get_devid_module()
-
-    devid_module.initialize()
-    click.echo('\nDevID Module successfully initialized.\n')
-
-
-@cli.command()
 def purge() -> None:
     """Purges all stored data and secrets."""
     if click.confirm('\nAre you sure to purge the DevID Module? This will irreversibly delete all data and secrets!\n'):
-        get_devid_module_for_purge()
+        purge_working_dir_and_inventory()
         click.echo('\nDevID Module successfully purged.\n')
 
 
@@ -104,7 +40,7 @@ def enumerate_() -> None:
 @enumerate_.command(name='devid-public-keys')
 def enumerate_devid_public_keys() -> None:
     """Lists all DevID public keys."""
-    devid_module = get_devid_module()
+    devid_module = DevIdModule()
     table = PrettyTable()
     table.field_names = ['Key Index', 'Is Enabled', 'Subject Public Key Info', 'Is IDevID']
     table.add_rows([
@@ -143,7 +79,7 @@ def enumerate_devid_certificates(show_certificates: bool) -> None:  # noqa: FBT0
     Args:
         show_certificates: Also prints the certificates in PEM format if this flag is set (True).
     """
-    devid_module = get_devid_module()
+    devid_module = DevIdModule()
     table = PrettyTable()
     if show_certificates:
         table.field_names = ['Certificate Index', 'Key Index', 'Is Enabled', 'Is IDevID', 'Certificate']
@@ -162,7 +98,7 @@ def enumerate_devid_certificate_chains(certificate_index: int) -> None:
     Args:
         certificate_index: The certificate index of the certificate that contains the desired certificate chain.
     """
-    devid_module = get_devid_module()
+    devid_module = DevIdModule()
     devid_certificate_ = devid_module.inventory.devid_certificates.get(certificate_index)
     if devid_certificate_ is None:
         click.echo(f'\nNo DevID certificate found with the given index {certificate_index}.\n')
@@ -205,7 +141,7 @@ def insert_ldevid_key(password: str, file_path: Path) -> None:
     file_path = Path(file_path)
     if password is not None:
         password = password.encode()
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
     if devid_module is None:
         return
 
@@ -232,7 +168,7 @@ def insert_ldevid_certificate(file_path: Path) -> None:
         file_path: File path to the certificate file.
     """
     file_path = Path(file_path)
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
     if devid_module is None:
         return
 
@@ -267,7 +203,7 @@ def insert_ldevid_certificate_chain(certificate_index: int, file_path: Path) -> 
         file_path: The file path to the certificate chain file.
     """
     file_path = Path(file_path)
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
     if devid_module is None:
         return
 
@@ -301,7 +237,7 @@ def delete_devid_key(key_index: int) -> None:
     Args:
         key_index: The key index of the key to be deleted.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception handling
     try:
@@ -326,7 +262,7 @@ def delete_devid_certificate(certificate_index: int) -> None:
     Args:
         certificate_index: The certificate index of the certificate to be deleted.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception handling
     try:
@@ -351,7 +287,7 @@ def delete_devid_certificate_chain(certificate_index: int) -> None:
     Args:
         certificate_index: The certificate index of the certificate that contains the certificate chain to be deleted.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception handling
     try:
@@ -378,7 +314,7 @@ def enable_devid_key(key_index: int) -> None:
     Args:
         key_index: The key index of the key to be enabled.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception handling
     try:
@@ -399,7 +335,7 @@ def enable_devid_certificate(certificate_index: int) -> None:
     Args:
         certificate_index: The certificate index of the certificate to be enabled.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception handling
     try:
@@ -426,7 +362,7 @@ def disable_devid_key(key_index: int) -> None:
     Args:
         key_index: The key index of the key to be disabled.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception Handling
     try:
@@ -447,7 +383,7 @@ def disable_devid_certificate(certificate_index: int) -> None:
     Args:
         certificate_index: The certificate index of the certificate to be disabled.
     """
-    devid_module = get_initialized_devid_module()
+    devid_module = DevIdModule()
 
     # TODO(AlexHx8472): Exception handling
     try:
