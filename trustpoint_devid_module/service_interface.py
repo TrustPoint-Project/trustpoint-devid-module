@@ -312,7 +312,7 @@ class DevIdModule:
 
     # --------------------------------------------------- Deletions ----------------------------------------------------
 
-    @handle_unexpected_errors(message='Failed to delete the LDevID Key.')
+    # @handle_unexpected_errors(message='Failed to delete the LDevID Key.')
     def delete_ldevid_key(self, key_index: int) -> None:
         """Deletes the LDevID key corresponding to the provided key index.
 
@@ -327,6 +327,7 @@ class DevIdModule:
             IDevIdKeyDeletionError: If the DevID Key is an IDevID Key and thus cannot be deleted.
             InventoryDataWriteError: If the DevID Module failed to write the inventory data to disc.
         """
+
         inventory = self.inventory
         devid_key = inventory.devid_keys.get(key_index)
 
@@ -337,21 +338,21 @@ class DevIdModule:
             raise IDevIdKeyDeletionError(key_index=key_index)
 
         for certificate_index in devid_key.certificate_indices:
-            del inventory.devid_certificates[certificate_index]
+            try:
+                del inventory.devid_certificates[certificate_index]
+            except KeyError:
+                pass
             inventory.certificate_fingerprint_mapping = {
                 fingerprint: index
                 for fingerprint, index in inventory.certificate_fingerprint_mapping.items()
                 if index != certificate_index
             }
-
         del inventory.devid_keys[key_index]
-
         inventory.public_key_fingerprint_mapping = {
             fingerprint: index
             for fingerprint, index in inventory.public_key_fingerprint_mapping.items()
             if index != key_index
         }
-
         self._store_inventory(inventory)
 
     @handle_unexpected_errors(message='Failed to delete the LDevID Certificate.')
@@ -379,6 +380,8 @@ class DevIdModule:
         if devid_certificate.is_idevid:
             raise IDevIdCertificateDeletionError(certificate_index=certificate_index)
 
+        key_index = inventory.devid_certificates[certificate_index].key_index
+        inventory.devid_keys[key_index].certificate_indices.remove(certificate_index)
         del inventory.devid_certificates[certificate_index]
         inventory.certificate_fingerprint_mapping = {
             fingerprint: index
