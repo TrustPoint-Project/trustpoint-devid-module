@@ -155,7 +155,7 @@ class CertificateCollectionSerializer(Serializer):
         certificate_collection: \
             bytes | str \
             | list[bytes | str | x509.Certificate | CertificateSerializer] \
-            | CertificateCollectionSerializer,
+            | CertificateCollectionSerializer
     ) -> None:
         """Inits the CertificateCollectionSerializer class.
 

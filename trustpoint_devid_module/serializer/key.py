@@ -120,7 +120,9 @@ class PrivateKeySerializer(Serializer):
     _private_key: PrivateKey
 
     def __init__(
-        self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None
+            self,
+            private_key: bytes | str | PrivateKey | PrivateKeySerializer,
+            password: None | bytes = None
     ) -> None:
         """Inits the PrivateKeySerializer class.
 

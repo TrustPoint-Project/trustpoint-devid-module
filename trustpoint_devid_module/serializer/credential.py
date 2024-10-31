@@ -44,18 +44,19 @@ class CredentialSerializer(Serializer):
 
     def __init__(
         self,
-        credential: bytes
-        | pkcs12.PKCS12KeyAndCertificates
-        | CredentialSerializer
-        | tuple[bytes | str | PrivateKey | PrivateKeySerializer, bytes | str | x509.Certificate | CertificateSerializer]
-        | tuple[
-            bytes | str | PrivateKey | PrivateKeySerializer,
-            bytes | str | x509.Certificate | CertificateSerializer,
-            None
-            | bytes
-            | str
-            | list[bytes | str | x509.Certificate | CertificateSerializer]
-            | CertificateCollectionSerializer,
+        credential: bytes \
+        | pkcs12.PKCS12KeyAndCertificates \
+        | CredentialSerializer \
+        | tuple[ \
+            bytes | str | PrivateKey | PrivateKeySerializer, bytes | str | x509.Certificate | CertificateSerializer] \
+        | tuple[ \
+            bytes | str | PrivateKey | PrivateKeySerializer,\
+            bytes | str | x509.Certificate | CertificateSerializer, \
+            None \
+            | bytes \
+            | str \
+            | list[bytes | str | x509.Certificate | CertificateSerializer] \
+            | CertificateCollectionSerializer, \
         ],
         password: None | bytes = None,
     ) -> None:
