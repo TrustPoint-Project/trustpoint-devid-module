@@ -7,8 +7,8 @@ readme = 'README.md'
 
 [tool.poetry.dependencies]
 python = '^3.10'
-click = '^8.1.7'
-prettytable = '^3.11.0'
+click = "^8.1.7"
+prettytable = "^3.12.0"
 pyasn1 = "^0.6.1"
 pyasn1-modules = "^0.4.1"
 pydantic = "^2.9.2"
@@ -17,8 +17,8 @@ cryptography = "^43.0.3"
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = '^8.3.2'
-ruff = '^0.6.3'
+pytest = "^8.3.3"
+ruff = "^0.7.3"
 
 [build-system]
 requires = ['poetry-core']
