@@ -134,12 +134,16 @@ class DevIdModule:
 
     @handle_unexpected_errors(message='Failed to insert the LDevID Key.')
     def insert_ldevid_key(
-            self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None) -> int:
+            self,
+            private_key: bytes | str | PrivateKey | PrivateKeySerializer,
+            password: None | bytes = None,
+            as_idevid: bool = False) -> int:
         """Inserts the LDevID private key corresponding to the provided key index.
 
         Args:
             private_key: The private key to be inserted.
             password: The password as bytes, if any. None, otherwise.
+            as_idevid: If the key shall be injected as an IDevID instead of an LDevID.
 
         Returns:
             int: The key index of the newly inserted private key.
@@ -175,7 +179,7 @@ class DevIdModule:
             key_index=new_key_index,
             certificate_indices=[],
             is_enabled=False,
-            is_idevid_key=False,
+            is_idevid_key=as_idevid,
             private_key=private_key_bytes,
             public_key=public_key_bytes,
         )
@@ -189,12 +193,21 @@ class DevIdModule:
 
         return new_key_index
 
+    @handle_unexpected_errors(message='Failed to insert the IDevID Key.')
+    def insert_idevid_key(
+            self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None) -> int:
+        return self.insert_ldevid_key(private_key=private_key, password=password, force_idevid=True)
+
     @handle_unexpected_errors(message='Failed to insert the LDevID Certificate.')
-    def insert_ldevid_certificate(self, certificate: bytes | str | x509.Certificate | CertificateSerializer) -> int:
+    def insert_ldevid_certificate(
+            self,
+            certificate: bytes | str | x509.Certificate | CertificateSerializer,
+            as_idevid: bool = False) -> int:
         """Inserts the LDevID certificate corresponding to the provided certificate index.
 
         Args:
             certificate: The certificate to be inserted.
+            as_idevid: If the certificate shall be injected as an IDevID instead of an LDevID.
 
         Returns:
             int: The certificate index of the newly inserted certificate.
@@ -245,7 +258,7 @@ class DevIdModule:
             certificate_index=new_certificate_index,
             key_index=key_index,
             is_enabled=False,
-            is_idevid=False,
+            is_idevid=as_idevid,
             certificate=certificate.as_pem(),
             certificate_chain=[],
         )
@@ -258,6 +271,10 @@ class DevIdModule:
         self._store_inventory(inventory)
 
         return new_certificate_index
+
+    @handle_unexpected_errors(message='Failed to insert the IDevID Certificate.')
+    def insert_idevid_certificate(self, certificate: bytes | str | x509.Certificate | CertificateSerializer) -> int:
+        return self.insert_ldevid_certificate(certificate=certificate, as_idevid=True)
 
     @handle_unexpected_errors(message='Failed to insert the LDevID Certificate Chain.')
     def insert_ldevid_certificate_chain(
@@ -310,9 +327,23 @@ class DevIdModule:
 
         return certificate_index
 
+    @handle_unexpected_errors(message='Failed to insert the IDevID Certificate Chain.')
+    def insert_idevid_certificate_chain(
+            self,
+            certificate_index: int,
+            certificate_chain: \
+                    bytes | str \
+                    | list[bytes | str | x509.Certificate | CertificateSerializer] \
+                    | CertificateCollectionSerializer
+    ) -> int:
+        return self.insert_ldevid_certificate_chain(
+            certificate_index=certificate_index,
+            certificate_chain=certificate_chain)
+
+
     # --------------------------------------------------- Deletions ----------------------------------------------------
 
-    # @handle_unexpected_errors(message='Failed to delete the LDevID Key.')
+    @handle_unexpected_errors(message='Failed to delete the LDevID Key.')
     def delete_ldevid_key(self, key_index: int) -> None:
         """Deletes the LDevID key corresponding to the provided key index.
 
@@ -355,6 +386,10 @@ class DevIdModule:
         }
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to delete the IDevID Key.')
+    def delete_idevid_key(self, key_index: int) -> None:
+        self.delete_ldevid_key(key_index=key_index)
+
     @handle_unexpected_errors(message='Failed to delete the LDevID Certificate.')
     def delete_ldevid_certificate(self, certificate_index: int) -> None:
         """Deletes the LDevID certificate corresponding to the provided certificate index.
@@ -391,6 +426,10 @@ class DevIdModule:
 
         self._store_inventory(inventory)
 
+    @handle_unexpected_errors(message='Failed to delete the IDevID Certificate.')
+    def delete_idevid_certificate(self, certificate_index: int) -> None:
+        self.delete_ldevid_certificate(certificate_index=certificate_index)
+
     @handle_unexpected_errors(message='Failed to delete the LDevID Certificate Chain.')
     def delete_ldevid_certificate_chain(self, certificate_index: int) -> None:
         """Deletes the LDevID certificate chain corresponding to the certificate with the provided certificate index.
@@ -426,6 +465,10 @@ class DevIdModule:
         devid_certificate.certificate_chain = []
 
         self._store_inventory(inventory)
+
+    @handle_unexpected_errors(message='Failed to delete the IDevID Certificate Chain.')
+    def delete_idevid_certificate_chain(self, certificate_index: int) -> None:
+        self.delete_ldevid_certificate_chain(certificate_index=certificate_index)
 
     # ---------------------------------- Enable / Disable DevID Keys and Certificates ----------------------------------
 
@@ -543,6 +586,31 @@ class DevIdModule:
             for devid_key_index, devid_key in self.inventory.devid_keys.items()
         ]
 
+    @handle_unexpected_errors(message='Failed to enumerate the DevID Public Keys.')
+    def enumerate_ldevid_public_keys(self) -> list[tuple[int, bool, bytes, bool]]:
+        return[
+            (
+                devid_key_index,
+                devid_key.is_enabled,
+                PublicKeySerializer(devid_key.public_key).as_der(),
+                devid_key.is_idevid_key,
+            ) for devid_key_index, devid_key in self.inventory.devid_keys.items()
+            if not devid_key.is_idevid_key
+        ]
+
+
+    @handle_unexpected_errors(message='Failed to enumerate the DevID Public Keys.')
+    def enumerate_idevid_public_keys(self) -> list[tuple[int, bool, bytes, bool]]:
+        return [
+            (
+                devid_key_index,
+                devid_key.is_enabled,
+                PublicKeySerializer(devid_key.public_key).as_der(),
+                devid_key.is_idevid_key,
+            ) for devid_key_index, devid_key in self.inventory.devid_keys.items()
+            if devid_key.is_idevid_key
+        ]
+
     @handle_unexpected_errors(message='Failed to enumerate the DevID Certificates.')
     def enumerate_devid_certificates(self) -> list[tuple[int, int, bool, bool, bytes]]:
         """Enumerates all DevID certificates.
@@ -562,19 +630,44 @@ class DevIdModule:
         Raises:
             NotInitializedError: If the DevID Module is not yet initialized.
         """
-        enumerated_certificates = []
-        for devid_certificate_index, devid_certificate in self.inventory.devid_certificates.items():
-            enumerated_certificates.append(
-                (
-                    devid_certificate_index,
-                    devid_certificate.key_index,
-                    devid_certificate.is_enabled,
-                    devid_certificate.is_idevid,
-                    CertificateSerializer(devid_certificate.certificate).as_der(),
-                )
+        return [
+            (
+                devid_certificate_index,
+                devid_certificate.key_index,
+                devid_certificate.is_enabled,
+                devid_certificate.is_idevid,
+                CertificateSerializer(devid_certificate.certificate).as_der(),
             )
+            for devid_certificate_index, devid_certificate in self.inventory.devid_certificates.items()
+        ]
 
-        return enumerated_certificates
+    @handle_unexpected_errors(message='Failed to enumerate the DevID Certificates.')
+    def enumerate_ldevid_certificates(self) -> list[tuple[int, int, bool, bool, bytes]]:
+        return [
+            (
+                devid_certificate_index,
+                devid_certificate.key_index,
+                devid_certificate.is_enabled,
+                devid_certificate.is_idevid,
+                CertificateSerializer(devid_certificate.certificate).as_der(),
+            )
+            for devid_certificate_index, devid_certificate in self.inventory.devid_certificates.items()
+            if not devid_certificate.is_idevid
+        ]
+
+    @handle_unexpected_errors(message='Failed to enumerate the DevID Certificates.')
+    def enumerate_idevid_certificates(self) -> list[tuple[int, int, bool, bool, bytes]]:
+        return [
+            (
+                devid_certificate_index,
+                devid_certificate.key_index,
+                devid_certificate.is_enabled,
+                devid_certificate.is_idevid,
+                CertificateSerializer(devid_certificate.certificate).as_der(),
+            )
+            for devid_certificate_index, devid_certificate in self.inventory.devid_certificates.items()
+            if devid_certificate.is_idevid
+        ]
 
     @handle_unexpected_errors(message='Failed to enumerate the corresponding DevID Certificate Chain.')
     def enumerate_devid_certificate_chain(self, certificate_index: int) -> list[bytes]:
