@@ -24,9 +24,9 @@ from trustpoint_devid_module.exceptions import (
     DevIdModuleCorruptedError,
     DevIdModuleNotImplementedError,
     EmptyDataError,
-    IDevIdCertificateChainDeletionError,
-    IDevIdCertificateDeletionError,
-    IDevIdKeyDeletionError,
+    # IDevIdCertificateChainDeletionError,
+    # IDevIdCertificateDeletionError,
+    # IDevIdKeyDeletionError,
     InventoryDataWriteError,
     SignatureSuiteOfCertificateDoesNotMatchTheKeyError,
     UnexpectedDevIdModuleError,
@@ -365,8 +365,9 @@ class DevIdModule:
         if devid_key is None:
             raise DevIdKeyNotFoundError(key_index=key_index)
 
-        if devid_key.is_idevid_key:
-            raise IDevIdKeyDeletionError(key_index=key_index)
+        # TODO(AlexHx8472): This is currently allowed for demo purposes.
+        # if devid_key.is_idevid_key:
+        #     raise IDevIdKeyDeletionError(key_index=key_index)
 
         for certificate_index in devid_key.certificate_indices:
             try:
@@ -412,8 +413,9 @@ class DevIdModule:
         if devid_certificate is None:
             raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        if devid_certificate.is_idevid:
-            raise IDevIdCertificateDeletionError(certificate_index=certificate_index)
+        # TODO(AlexHx8472): This is currently allowed for demo purposes.
+        # if devid_certificate.is_idevid:
+        #     raise IDevIdCertificateDeletionError(certificate_index=certificate_index)
 
         key_index = inventory.devid_certificates[certificate_index].key_index
         inventory.devid_keys[key_index].certificate_indices.remove(certificate_index)
@@ -453,8 +455,9 @@ class DevIdModule:
         if devid_certificate is None:
             raise DevIdCertificateNotFoundError(certificate_index=certificate_index)
 
-        if devid_certificate.is_idevid:
-            IDevIdCertificateChainDeletionError(certificate_index=certificate_index)
+        # TODO(AlexHx8472): This is currently allowed for demo purposes.
+        # if devid_certificate.is_idevid:
+        #     IDevIdCertificateChainDeletionError(certificate_index=certificate_index)
 
         if devid_certificate.is_enabled is False:
             raise DevIdCertificateIsDisabledError(certificate_index=certificate_index)
