@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'trustpoint-devid-module'
-version = '0.1.0'
+version = '0.2.0'
 description = ''
 authors = ['TrustPoint-Project']
 readme = 'README.md'
@@ -11,9 +11,9 @@ click = "^8.1.7"
 prettytable = "^3.12.0"
 pyasn1 = "^0.6.1"
 pyasn1-modules = "^0.4.1"
-pydantic = "^2.9.2"
 platformdirs = "^4.3.6"
 cryptography = "^43.0.3"
+pydantic = "^2.10.2"
 
 
 [tool.poetry.group.dev.dependencies]
