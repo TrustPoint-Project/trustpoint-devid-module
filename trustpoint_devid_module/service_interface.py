@@ -196,7 +196,7 @@ class DevIdModule:
     @handle_unexpected_errors(message='Failed to insert the IDevID Key.')
     def insert_idevid_key(
             self, private_key: bytes | str | PrivateKey | PrivateKeySerializer, password: None | bytes = None) -> int:
-        return self.insert_ldevid_key(private_key=private_key, password=password, force_idevid=True)
+        return self.insert_ldevid_key(private_key=private_key, password=password, as_idevid=True)
 
     @handle_unexpected_errors(message='Failed to insert the LDevID Certificate.')
     def insert_ldevid_certificate(
